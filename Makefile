@@ -68,4 +68,4 @@ london2038patcher-darwin-arm64: fmt
 
 .PHONY: london2038patcher-windows
 london2038patcher-windows: fmt
-	CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO_BUILD) -o $(BUILD_OUTPUT)/london2038patcher.exe $(APP_PATH)
+	CGO_ENABLED=1 GOOS=windows GOARCH=amd64 $(GO_BUILD) -o $(BUILD_OUTPUT)/London2038Patcher.exe $(APP_PATH)

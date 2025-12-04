@@ -18,10 +18,10 @@ import (
 )
 
 type Patcher struct {
-	XMLUrl   string
-	BaseURL  string
-	XMLFile  string
-	PatchDir string
+	ChecksumURL  string
+	PatchURL     string
+	ChecksumFile string
+	PatchDir     string
 }
 
 type FileEntry struct {
@@ -36,9 +36,10 @@ type Files struct {
 }
 
 var (
-	xmlURLFlag  string
-	baseURLFlag string
-	xmlFileFlag string
+	checksumURLFlag  string
+	patchURLFlag     string
+	checksumFileFlag string
+	patchDirFlag     bool
 )
 
 var (
@@ -57,18 +58,24 @@ func version() string {
 //nolint:gochecknoinits // wontfix
 func init() {
 	flag.StringVar(
-		&xmlURLFlag,
-		"xmlurl",
+		&checksumURLFlag,
+		"checksum-url",
 		"https://auth.london2038.com/patcher/checksums.xml",
-		"URL to the checksums XML file",
+		"URL for checksum file",
 	)
 	flag.StringVar(
-		&baseURLFlag,
-		"baseurl",
+		&patchURLFlag,
+		"patch-url",
 		"https://auth.london2038.com/patcher/",
-		"Base URL for patch files",
+		"URL for patch files",
 	)
-	flag.StringVar(&xmlFileFlag, "xmlfile", "checksums.xml", "Local path to save XML file")
+	flag.StringVar(
+		&checksumFileFlag,
+		"checksum-file",
+		"checksums.xml",
+		"Path to save checksum file to",
+	)
+	flag.BoolVar(&patchDirFlag, "patch-dir", false, "Use patch directory for files")
 }
 
 func main() {
@@ -81,26 +88,25 @@ func main() {
 	}
 
 	p := Patcher{
-		XMLUrl:  xmlURLFlag,
-		BaseURL: baseURLFlag,
-		XMLFile: xmlFileFlag,
+		ChecksumURL:  checksumURLFlag,
+		PatchURL:     patchURLFlag,
+		ChecksumFile: checksumFileFlag,
 	}
 
-	if err := dlutil.Download(context.Background(), p.XMLFile, p.XMLUrl); err != nil {
+	if err := dlutil.Download(context.Background(), p.ChecksumFile, p.ChecksumURL); err != nil {
 		fmt.Fprintf(os.Stderr, "Error downloading checksums: %v\n", err)
 		return
 	}
 
-	files, err := xmlutil.Unmarshal[Files](p.XMLFile)
+	files, err := xmlutil.Unmarshal[Files](p.ChecksumFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading checksums: %v\n", err)
 		return
 	}
 
-	p.PatchDir = patchDir(files)
-	if err := os.MkdirAll(p.PatchDir, 0o755); err != nil {
+	p.PatchDir, err = patchDir(files)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating patch folder: %v\n", err)
-		return
 	}
 
 	if err := p.process(files); err != nil {
@@ -115,8 +121,12 @@ func (p *Patcher) process(files *Files) error {
 			continue
 		}
 
-		path := filepath.Join(p.PatchDir, entry.Name)
-		url := p.BaseURL + strings.ReplaceAll(entry.Name, "\\", "/")
+		path := entry.Name
+		if patchDirFlag {
+			path = filepath.Join(p.PatchDir, entry.Name)
+		}
+
+		url := p.PatchURL + strings.ReplaceAll(entry.Name, "\\", "/")
 
 		if err := ensure(path); err != nil {
 			return errutil.WithFrame(err)
@@ -166,16 +176,18 @@ func validate(path, hash string) bool {
 }
 
 // patchDir creates a top level patch folder name using CRC32 of all file hashes.
-func patchDir(files *Files) string {
-	var combined string
+func patchDir(files *Files) (string, error) {
+	var hash string
 
 	for _, f := range files.Entries {
 		if strings.ToLower(f.Download) == "true" {
-			combined += f.Hash
+			hash += f.Hash
 		}
 	}
 
-	crc := crc32.ChecksumIEEE([]byte(combined))
+	crc := crc32.ChecksumIEEE([]byte(hash))
 
-	return fmt.Sprintf("patch_%08X", crc)
+	path := fmt.Sprintf("London2038Patch%08X", crc)
+
+	return path, os.MkdirAll(path, 0o755)
 }
