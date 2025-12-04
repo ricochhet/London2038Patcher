@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
@@ -17,9 +18,10 @@ import (
 )
 
 type Patcher struct {
-	XMLUrl  string
-	BaseURL string
-	XMLFile string
+	XMLUrl   string
+	BaseURL  string
+	XMLFile  string
+	PatchDir string
 }
 
 type FileEntry struct {
@@ -47,7 +49,7 @@ var (
 
 func version() string {
 	return fmt.Sprintf(
-		"London2038Patcher\n  Build Date: %s\n  Git Hash:  %s\n  Built On:  %s\n",
+		"London2038Patcher\n\tBuild Date: %s\n\tGit Hash: %s\n\tBuilt On: %s\n",
 		buildDate, gitHash, buildOn,
 	)
 }
@@ -95,6 +97,12 @@ func main() {
 		return
 	}
 
+	p.PatchDir = patchDir(files)
+	if err := os.MkdirAll(p.PatchDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating patch folder: %v\n", err)
+		return
+	}
+
 	if err := p.process(files); err != nil {
 		fmt.Fprintf(os.Stderr, "Error processing files: %v\n", err)
 	}
@@ -107,22 +115,21 @@ func (p *Patcher) process(files *Files) error {
 			continue
 		}
 
-		name := entry.Name
-		path := strings.ReplaceAll(entry.Name, "\\", "/")
-		url := p.BaseURL + path
+		path := filepath.Join(p.PatchDir, entry.Name)
+		url := p.BaseURL + strings.ReplaceAll(entry.Name, "\\", "/")
 
-		if err := ensure(name); err != nil {
+		if err := ensure(path); err != nil {
 			return errutil.WithFrame(err)
 		}
 
-		if validate(name, entry.Hash) {
-			fmt.Fprintf(os.Stdout, "Skipping: %s (already up-to-date)\n", name)
+		if validate(path, entry.Hash) {
+			fmt.Fprintf(os.Stdout, "Skipping: %s (already up-to-date)\n", path)
 			continue
 		}
 
-		fmt.Fprintf(os.Stdout, "Downloading: %s to %s\n", url, name)
+		fmt.Fprintf(os.Stdout, "Downloading: %s to %s\n", url, path)
 
-		if err := dlutil.Download(context.Background(), name, url); err != nil {
+		if err := dlutil.Download(context.Background(), path, url); err != nil {
 			return errutil.WithFrame(err)
 		}
 	}
@@ -156,4 +163,19 @@ func validate(path, hash string) bool {
 	sum := strings.ToUpper(hex.EncodeToString(h.Sum(nil)))
 
 	return sum == strings.ToUpper(hash)
+}
+
+// patchDir creates a top level patch folder name using CRC32 of all file hashes.
+func patchDir(files *Files) string {
+	var combined string
+
+	for _, f := range files.Entries {
+		if strings.ToLower(f.Download) == "true" {
+			combined += f.Hash
+		}
+	}
+
+	crc := crc32.ChecksumIEEE([]byte(combined))
+
+	return fmt.Sprintf("patch_%08X", crc)
 }
