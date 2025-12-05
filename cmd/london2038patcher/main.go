@@ -222,11 +222,13 @@ func patchDir(files *Files) (string, error) {
 	var hash string
 
 	var hashSb223 strings.Builder
+
 	for _, f := range files.Entries {
 		if strings.ToLower(f.Download) == "true" {
 			hashSb223.WriteString(f.Hash)
 		}
 	}
+
 	hash += hashSb223.String()
 
 	crc := crc32.ChecksumIEEE([]byte(hash))
