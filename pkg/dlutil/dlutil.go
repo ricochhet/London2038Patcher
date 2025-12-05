@@ -5,20 +5,32 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 )
 
+type HTTPClient struct {
+	*http.Client
+}
+
+// NewHTTPClient returns a HttpClient struct.
+func NewHTTPClient(timeout time.Duration) *HTTPClient {
+	return &HTTPClient{
+		Client: &http.Client{
+			Timeout: timeout,
+		},
+	}
+}
+
 // Download downloads a file from a URL into the specified path.
-func Download(ctx context.Context, path, url string) error {
+func (c *HTTPClient) Download(ctx context.Context, path, url string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return errutil.WithFrame(err)
 	}
 
-	client := &http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return errutil.WithFrame(err)
 	}

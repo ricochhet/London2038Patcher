@@ -1,8 +1,12 @@
 package fsutil
 
 import (
+	"encoding/hex"
+	"hash"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 )
@@ -30,4 +34,31 @@ func Write(path string, data []byte) error {
 	}
 
 	return nil
+}
+
+// Ensure ensures the file path, returning an error if it fails.
+func Ensure(path string) error {
+	dir := filepath.Dir(path)
+	if dir != "." {
+		return os.MkdirAll(dir, 0o755)
+	}
+
+	return nil
+}
+
+// Validate checks if a file exists and matches the given hash.
+func Validate(path, hash string, h hash.Hash) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(h, f); err != nil {
+		return false
+	}
+
+	sum := strings.ToUpper(hex.EncodeToString(h.Sum(nil)))
+
+	return sum == strings.ToUpper(hash)
 }

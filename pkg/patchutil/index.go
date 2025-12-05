@@ -48,12 +48,12 @@ type Index struct {
 }
 
 // Parse parses the byte buffer into an Index.
-func Parse(buf []byte) (Index, error) {
+func Parse(buf []byte) (*Index, error) {
 	offset := 0
 
 	version := byteutil.ReadU32(buf, &offset)
 	if version > 4 {
-		return Index{}, errutil.WithFramef("not a patch index file (version=%d)", version)
+		return &Index{}, errutil.WithFramef("not a patch index file (version=%d)", version)
 	}
 
 	var idx Index
@@ -77,7 +77,7 @@ func Parse(buf []byte) (Index, error) {
 	idx.Header.EndToken = byteutil.ReadU32(buf, &offset)
 
 	if idx.Header.EndToken != 1147496776 {
-		return Index{}, errutil.WithFrame(errors.New("invalid end token in header"))
+		return &Index{}, errutil.WithFrame(errors.New("invalid end token in header"))
 	}
 
 	for {
@@ -119,5 +119,5 @@ func Parse(buf []byte) (Index, error) {
 
 	idx.FullConsumed = (offset == len(buf))
 
-	return idx, nil
+	return &idx, nil
 }
