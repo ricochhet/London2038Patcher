@@ -14,6 +14,8 @@ import (
 
 	"github.com/ricochhet/london2038patcher/pkg/dlutil"
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/ricochhet/london2038patcher/pkg/fsutil"
+	"github.com/ricochhet/london2038patcher/pkg/patchutil"
 	"github.com/ricochhet/london2038patcher/pkg/xmlutil"
 )
 
@@ -87,6 +89,16 @@ func main() {
 		return
 	}
 
+	cmd, err := commands()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
+		return
+	}
+
+	if cmd {
+		return
+	}
+
 	p := Patcher{
 		ChecksumURL:  checksumURLFlag,
 		PatchURL:     patchURLFlag,
@@ -145,6 +157,35 @@ func (p *Patcher) process(files *Files) error {
 	}
 
 	return nil
+}
+
+func commands() (bool, error) {
+	cmd := flag.Args()[0]
+	args := flag.Args()[1:]
+
+	switch cmd {
+	case "unpack":
+		f, err := fsutil.Read(args[0])
+		if err != nil {
+			return true, errutil.WithFrame(err)
+		}
+
+		idx, err := patchutil.Parse(f)
+		if err != nil {
+			return true, errutil.WithFrame(err)
+		}
+
+		if err := idx.Unpack(args[1], args[2]); err != nil {
+			return true, errutil.WithFrame(err)
+		}
+
+		return true, nil
+	case "help":
+		flag.Usage()
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // ensure ensures the file path, returning an error if it fails.
