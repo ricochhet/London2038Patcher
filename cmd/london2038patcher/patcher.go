@@ -21,7 +21,9 @@ type Patcher struct {
 	ChecksumURL  string
 	PatchURL     string
 	ChecksumFile string
-	PatchDir     string
+
+	UsePatchDir bool
+	patchDir    string
 }
 
 type FileEntry struct {
@@ -42,12 +44,14 @@ func (p *Patcher) Download() error {
 		return errutil.WithFrame(err)
 	}
 
-	path, err := patchDir(files)
-	if err != nil {
-		return errutil.WithFrame(err)
-	}
+	if p.UsePatchDir {
+		path, err := patchDir(files)
+		if err != nil {
+			return errutil.WithFrame(err)
+		}
 
-	p.PatchDir = path
+		p.patchDir = path
+	}
 
 	if err := p.downloadFiles(files); err != nil {
 		return errutil.WithFrame(err)
@@ -79,7 +83,7 @@ func (p *Patcher) downloadFiles(files *Files) error {
 
 		path := entry.Name
 		if Flag.PatchDir {
-			path = filepath.Join(p.PatchDir, entry.Name)
+			path = filepath.Join(p.patchDir, entry.Name)
 		}
 
 		url := p.PatchURL + strings.ReplaceAll(entry.Name, "\\", "/")

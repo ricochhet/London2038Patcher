@@ -46,7 +46,8 @@ func main() {
 		ChecksumURL:  Flag.ChecksumURL,
 		PatchURL:     Flag.PatchURL,
 		ChecksumFile: Flag.ChecksumFile,
-		// PatchDir:     "",
+		UsePatchDir:  Flag.PatchDir,
+		patchDir:     "",
 	})
 
 	_ = download(patcher)
