@@ -117,7 +117,7 @@ func patchDir(files *Files) (string, error) {
 
 	hash += sb.String()
 	crc := crc32.ChecksumIEEE([]byte(hash))
-	path := fmt.Sprintf("London2038Patch%08X", crc)
+	path := fmt.Sprintf("London2038Patcher/%08X", crc)
 
 	return path, os.MkdirAll(path, 0o755)
 }

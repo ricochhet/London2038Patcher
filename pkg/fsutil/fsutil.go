@@ -36,6 +36,12 @@ func Write(path string, data []byte) error {
 	return nil
 }
 
+// Exists returns true if a file exists.
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
+}
+
 // Ensure ensures the file path, returning an error if it fails.
 func Ensure(path string) error {
 	dir := filepath.Dir(path)

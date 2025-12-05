@@ -7,6 +7,14 @@ import (
 
 // Unpacker unpacks the patch file with the given index.
 func Unpacker(index, patch, output string) error {
+	if !fsutil.Exists(index) {
+		return errutil.WithFramef("path does not exist: %s", index)
+	}
+
+	if !fsutil.Exists(patch) {
+		return errutil.WithFramef("path does not exist: %s", patch)
+	}
+
 	f, err := fsutil.Read(index)
 	if err != nil {
 		return errutil.WithFrame(err)

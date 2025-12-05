@@ -24,6 +24,11 @@ func version() string {
 	)
 }
 
+func usage() {
+	flag.Usage()
+	os.Exit(0)
+}
+
 func main() {
 	if Flag.Version {
 		fmt.Fprint(os.Stdout, version())
@@ -44,16 +49,7 @@ func main() {
 		// PatchDir:     "",
 	})
 
-	_ = timeutil.Timer(func() error {
-		pErr := patcher.Get().Download()
-		if pErr != nil {
-			fmt.Fprintf(os.Stderr, "Error downloading files: %v\n", pErr)
-		}
-
-		return pErr
-	}, "Download", func(_, elapsed string) {
-		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
-	})
+	_ = download(patcher)
 }
 
 // commands handles the specified command flags.
@@ -67,22 +63,44 @@ func commands() bool {
 
 	switch cmd {
 	case "unpack":
-		_ = timeutil.Timer(func() error {
-			uErr := patchutil.Unpacker(args[0], args[1], args[2])
-			if uErr != nil {
-				fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
-			}
+		if flag.NArg() < 4 {
+			usage()
+		}
 
-			return uErr
-		}, "Unpack", func(_, elapsed string) {
-			fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
-		})
+		_ = unpack(args...)
 
 		return true
 	case "help", "h":
-		flag.Usage()
-		return true
+		usage()
 	}
 
 	return false
+}
+
+// download command.
+func download(patcher *PatcherCtx) error {
+	return timeutil.Timer(func() error {
+		pErr := patcher.Get().Download()
+		if pErr != nil {
+			fmt.Fprintf(os.Stderr, "Error downloading files: %v\n", pErr)
+		}
+
+		return pErr
+	}, "Download", func(_, elapsed string) {
+		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
+	})
+}
+
+// unpack command.
+func unpack(a ...string) error {
+	return timeutil.Timer(func() error {
+		uErr := patchutil.Unpacker(a[0], a[1], a[2])
+		if uErr != nil {
+			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
+		}
+
+		return uErr
+	}, "Unpack", func(_, elapsed string) {
+		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
+	})
 }

@@ -2,7 +2,7 @@
 Lets you download the patches for the London 2038 modification for Hellgate: London without using the official launcher.
 
 ### Basic Usage
-Running `london2038patcher` without any arguments will download the London 2038 files to the current directory. Appending the `-patch-dir` argument will download the files into a directory formatted as `London2038Patch[CRC32]` where `[CRC32]` is a combined CRC32 hash of all file hashes specified in `checksums.xml`
+Running `london2038patcher` without any arguments will download the London 2038 files to the current directory. Appending the `-patch-dir` argument will download the files into a directory formatted as `London2038Patcher/[CRC32]` where `[CRC32]` is a combined CRC32 hash of all file hashes specified in `checksums.xml`
 
 ### Unpacking Patch Files
 The tool supports unpacking the patch files for SP 1.2 and MP 2.0. Use `london2038patcher unpack path/to/patch.idx path/to/patch.dat path/to/unpack/to` to unpack patch files. The tool does not support packing or unpacking of any other files or formats, use [Reanimator](https://hellgateaus.cyou/forum/hellgate-london-download-reanimator/reanimator-r1133/) if you need those features.
