@@ -4,11 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
+	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patchutil"
+	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/regutil"
+	"github.com/ricochhet/london2038patcher/pkg/cmdutil"
 	"github.com/ricochhet/london2038patcher/pkg/dlutil"
-	"github.com/ricochhet/london2038patcher/pkg/patchutil"
 	"github.com/ricochhet/london2038patcher/pkg/timeutil"
+	"github.com/ricochhet/london2038patcher/pkg/winutil"
 )
 
 var (
@@ -42,15 +46,17 @@ func main() {
 
 	patcher := NewPatcherCtx()
 	patcher.Set(&Patcher{
-		HTTPClient:   *dlutil.NewHTTPClient(time.Duration(Flag.Timeout)),
-		ChecksumURL:  Flag.ChecksumURL,
-		PatchURL:     Flag.PatchURL,
-		ChecksumFile: Flag.ChecksumFile,
-		UsePatchDir:  Flag.PatchDir,
-		patchDir:     "",
+		HTTPClient:    *dlutil.NewHTTPClient(time.Duration(Flag.Timeout)),
+		ChecksumURL:   Flag.ChecksumURL,
+		PatchURL:      Flag.PatchURL,
+		ChecksumFile:  Flag.ChecksumFile,
+		HellgateCUKey: "",
+		HellgateKey:   "",
+		UsePatchDir:   Flag.PatchDir,
+		patchDir:      "",
 	})
 
-	_ = download(patcher)
+	_ = patcher.download()
 }
 
 // commands handles the specified command flags.
@@ -71,17 +77,31 @@ func commands() bool {
 		_ = unpack(args...)
 
 		return true
+	case "regedit":
+		maybeUnsupported()
+
+		if flag.NArg() < 3 {
+			usage()
+		}
+
+		_ = regedit(args...)
+
+		return true
 	case "help", "h":
 		usage()
+	}
+
+	if winutil.IsAdmin() {
+		cmdutil.Pause()
 	}
 
 	return false
 }
 
 // download command.
-func download(patcher *PatcherCtx) error {
+func (p *PatcherCtx) download() error {
 	return timeutil.Timer(func() error {
-		pErr := patcher.Get().Download()
+		pErr := p.Get().Download()
 		if pErr != nil {
 			fmt.Fprintf(os.Stderr, "Error downloading files: %v\n", pErr)
 		}
@@ -104,4 +124,26 @@ func unpack(a ...string) error {
 	}, "Unpack", func(_, elapsed string) {
 		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
 	})
+}
+
+// regedit command.
+func regedit(a ...string) error {
+	return timeutil.Timer(func() error {
+		rErr := regutil.Regedit(a[0], a[1])
+		if rErr != nil {
+			fmt.Fprintf(os.Stderr, "Error editing registry: %v\n", rErr)
+		}
+
+		return rErr
+	}, "Regedit", func(_, elapsed string) {
+		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
+	})
+}
+
+// maybeUnsupported exits with code 1 if the current runtime is not Windows.
+func maybeUnsupported() {
+	if runtime.GOOS != "windows" {
+		fmt.Fprintf(os.Stderr, "This command is unsupported on non-Windows machines.\n")
+		os.Exit(1)
+	}
 }

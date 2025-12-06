@@ -22,6 +22,9 @@ type Patcher struct {
 	PatchURL     string
 	ChecksumFile string
 
+	HellgateCUKey string
+	HellgateKey   string
+
 	UsePatchDir bool
 	patchDir    string
 }

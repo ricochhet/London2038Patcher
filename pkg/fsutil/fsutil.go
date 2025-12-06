@@ -2,6 +2,7 @@ package fsutil
 
 import (
 	"encoding/hex"
+	"errors"
 	"hash"
 	"io"
 	"os"
@@ -40,6 +41,24 @@ func Write(path string, data []byte) error {
 func Exists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
+}
+
+// Normalize normalizes a path to always be absolute.
+func Normalize(path string) (string, error) {
+	if path == "" {
+		return "", errutil.WithFrame(errors.New("path is empty"))
+	}
+
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path), nil
+	}
+
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Clean(abs), nil
 }
 
 // Ensure ensures the file path, returning an error if it fails.
