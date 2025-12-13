@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patchutil"
@@ -65,7 +66,7 @@ func commands() bool {
 		return false
 	}
 
-	cmd := flag.Args()[0]
+	cmd := strings.ToLower(flag.Args()[0])
 	args := flag.Args()[1:]
 
 	switch cmd {
@@ -75,6 +76,14 @@ func commands() bool {
 		}
 
 		_ = unpack(args...)
+
+		return true
+	case "unpackfromfile":
+		if flag.NArg() < 3 {
+			usage()
+		}
+
+		_ = unpackFromFile(args...)
 
 		return true
 	case "regedit":
@@ -115,13 +124,27 @@ func (p *PatcherCtx) download() error {
 // unpack command.
 func unpack(a ...string) error {
 	return timeutil.Timer(func() error {
-		uErr := patchutil.Unpacker(a[0], a[1], a[2])
+		uErr := patchutil.Unpack(a[0], a[1], a[2])
 		if uErr != nil {
 			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
 		}
 
 		return uErr
 	}, "Unpack", func(_, elapsed string) {
+		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
+	})
+}
+
+// unpackFromFile command.
+func unpackFromFile(a ...string) error {
+	return timeutil.Timer(func() error {
+		uErr := patchutil.UnpackFromFile(a[0], a[1])
+		if uErr != nil {
+			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
+		}
+
+		return uErr
+	}, "UnpackFromFile", func(_, elapsed string) {
 		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
 	})
 }
