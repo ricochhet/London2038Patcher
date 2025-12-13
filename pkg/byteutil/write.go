@@ -1,6 +1,9 @@
 package byteutil
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"unicode/utf16"
+)
 
 // WriteU32 writes a uint32 at the specified offset.
 func WriteU32(b []byte, off *int, v uint32) {
@@ -48,8 +51,9 @@ func WriteI8(b []byte, off *int, v int8) {
 
 // WriteStringUnicode writes a UTF-16LE encoded string of the specified length.
 func WriteStringUnicode(b []byte, off *int, s string) {
-	for _, r := range s {
-		binary.LittleEndian.PutUint16(b[*off:], uint16(r))
+	u16 := utf16.Encode([]rune(s))
+	for _, v := range u16 {
+		binary.LittleEndian.PutUint16(b[*off:], v)
 		*off += 2
 	}
 }

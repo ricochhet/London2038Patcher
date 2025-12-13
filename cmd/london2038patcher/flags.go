@@ -1,6 +1,8 @@
 package main
 
-import "flag"
+import (
+	"flag"
+)
 
 type Flags struct {
 	ChecksumURL  string
@@ -9,6 +11,7 @@ type Flags struct {
 	PatchDir     bool
 	Version      bool
 	Timeout      int
+	Locale       string
 }
 
 var Flag = NewFlags()
@@ -47,4 +50,5 @@ func registerFlags(fs *flag.FlagSet, f *Flags) {
 	fs.BoolVar(&f.PatchDir, "patch-dir", false, "Use patch directory for files")
 	fs.BoolVar(&f.Version, "version", false, "Show version information")
 	fs.IntVar(&f.Timeout, "timeout", 0, "Set download timeout")
+	fs.StringVar(&f.Locale, "locale", "en", "Set locale code for un/packing")
 }

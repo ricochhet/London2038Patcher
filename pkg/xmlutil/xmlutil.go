@@ -5,10 +5,11 @@ import (
 	"os"
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/ricochhet/london2038patcher/pkg/fsutil"
 )
 
-// Unmarshal parses an XML file from the specified path.
-func Unmarshal[T any](path string) (*T, error) {
+// ReadAndUnmarshal parses an XML file from the specified path.
+func ReadAndUnmarshal[T any](path string) (*T, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, errutil.WithFrame(err)
@@ -20,4 +21,14 @@ func Unmarshal[T any](path string) (*T, error) {
 	}
 
 	return &t, nil
+}
+
+// MarshalAndWrite marshales the data to the specified output file.
+func MarshalAndWrite[T any](path string, data T) ([]byte, error) {
+	b, err := xml.MarshalIndent(data, "", "\t")
+	if err != nil {
+		return nil, err
+	}
+
+	return b, fsutil.Write(path, b)
 }

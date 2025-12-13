@@ -69,7 +69,7 @@ func (p *Patcher) downloadChecksums() (*Files, error) {
 		return &Files{}, errutil.WithFrame(err)
 	}
 
-	files, err := xmlutil.Unmarshal[Files](p.ChecksumFile)
+	files, err := xmlutil.ReadAndUnmarshal[Files](p.ChecksumFile)
 	if err != nil {
 		return &Files{}, errutil.WithFrame(err)
 	}

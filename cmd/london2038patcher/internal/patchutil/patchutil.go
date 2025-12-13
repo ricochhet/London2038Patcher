@@ -15,8 +15,13 @@ type Patch struct {
 	Dat string `json:"dat"`
 }
 
+type Dat struct {
+	Locale       string
+	AppendLocale bool
+}
+
 // Unpack unpacks the patch file with the given index.
-func Unpack(index, patch, output string) error {
+func (d *Dat) Unpack(index, patch, output string) error {
 	if !fsutil.Exists(index) {
 		return errutil.WithFramef("path does not exist: %s", index)
 	}
@@ -30,12 +35,44 @@ func Unpack(index, patch, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	idx, err := Parse(f)
+	idx, err := Decode(f)
 	if err != nil {
 		return errutil.WithFrame(err)
 	}
 
-	if err := idx.Unpack(patch, output); err != nil {
+	if err := idx.Unpack(patch, output, d.Locale, d.AppendLocale); err != nil {
+		return errutil.WithFrame(err)
+	}
+
+	return nil
+}
+
+// Pack packs the path with the given index.
+func (d *Dat) Pack(index, path, output string) error {
+	if !fsutil.Exists(index) {
+		return errutil.WithFramef("path does not exist: %s", index)
+	}
+
+	f, err := fsutil.Read(index)
+	if err != nil {
+		return errutil.WithFrame(err)
+	}
+
+	idx, err := Decode(f)
+	if err != nil {
+		return errutil.WithFrame(err)
+	}
+
+	if err := idx.Pack(path, output, d.Locale, d.AppendLocale); err != nil {
+		return errutil.WithFrame(err)
+	}
+
+	return nil
+}
+
+// Pack packs the path with the given index.
+func (d *Dat) PackWithIndex(path, index, patch string) error {
+	if err := PackWithIndex(path, index, patch, d.Locale, d.AppendLocale); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -43,23 +80,23 @@ func Unpack(index, patch, output string) error {
 }
 
 // UnpackFromFile unpacks the patches from the specified file to the given output.
-func UnpackFromFile(path, output string) error {
+func (d *Dat) UnpackFromFile(path, output string) error {
 	if !fsutil.Exists(path) {
 		return errutil.WithFramef("path does not exist: %s", path)
 	}
 
-	p, err := jsonutil.Unmarshal[Patches](path)
+	p, err := jsonutil.ReadAndUnmarshal[Patches](path)
 	if err != nil {
 		return err
 	}
 
-	return p.unpackFromFile(output)
+	return d.unpackFromFile(output, p)
 }
 
 // unpackFromFile unpacks the patch files specified to the given output.
-func (p *Patches) unpackFromFile(output string) error {
-	for _, patch := range p.Patches {
-		if err := Unpack(patch.Idx, patch.Dat, output); err != nil {
+func (d *Dat) unpackFromFile(output string, patches *Patches) error {
+	for _, patch := range patches.Patches {
+		if err := d.Unpack(patch.Idx, patch.Dat, output); err != nil {
 			return err
 		}
 	}

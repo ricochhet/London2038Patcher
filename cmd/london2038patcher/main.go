@@ -70,12 +70,44 @@ func commands() bool {
 	args := flag.Args()[1:]
 
 	switch cmd {
+	case "decodeidx":
+		if flag.NArg() < 3 {
+			usage()
+		}
+
+		_ = decode(args...)
+
+		return true
+	case "encodeidx":
+		if flag.NArg() < 3 {
+			usage()
+		}
+
+		_ = encode(args...)
+
+		return true
 	case "unpack":
 		if flag.NArg() < 4 {
 			usage()
 		}
 
 		_ = unpack(args...)
+
+		return true
+	case "pack":
+		if flag.NArg() < 4 {
+			usage()
+		}
+
+		_ = pack(args...)
+
+		return true
+	case "packwithidx":
+		if flag.NArg() < 4 {
+			usage()
+		}
+
+		_ = packWithIdx(args...)
 
 		return true
 	case "unpackfromfile":
@@ -121,10 +153,40 @@ func (p *PatcherCtx) download() error {
 	})
 }
 
+// decode command.
+func decode(a ...string) error {
+	return timeutil.Timer(func() error {
+		_, dErr := patchutil.DecodeFile(a[0], a[1])
+		if dErr != nil {
+			fmt.Fprintf(os.Stderr, "Error decoding index file: %v\n", dErr)
+		}
+
+		return dErr
+	}, "Decode", func(_, elapsed string) {
+		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
+	})
+}
+
+// encode command.
+func encode(a ...string) error {
+	return timeutil.Timer(func() error {
+		eErr := patchutil.EncodeFile(a[0], a[1])
+		if eErr != nil {
+			fmt.Fprintf(os.Stderr, "Error encoding index file: %v\n", eErr)
+		}
+
+		return eErr
+	}, "Encode", func(_, elapsed string) {
+		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
+	})
+}
+
 // unpack command.
 func unpack(a ...string) error {
 	return timeutil.Timer(func() error {
-		uErr := patchutil.Unpack(a[0], a[1], a[2])
+		d := patchutil.Dat{Locale: Flag.Locale}
+
+		uErr := d.Unpack(a[0], a[1], a[2])
 		if uErr != nil {
 			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
 		}
@@ -135,10 +197,44 @@ func unpack(a ...string) error {
 	})
 }
 
+// pack command.
+func pack(a ...string) error {
+	return timeutil.Timer(func() error {
+		d := patchutil.Dat{Locale: Flag.Locale}
+
+		pErr := d.Pack(a[0], a[1], a[2])
+		if pErr != nil {
+			fmt.Fprintf(os.Stderr, "Error packing patch: %v\n", pErr)
+		}
+
+		return pErr
+	}, "Pack", func(_, elapsed string) {
+		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
+	})
+}
+
+// packWithIdx command.
+func packWithIdx(a ...string) error {
+	return timeutil.Timer(func() error {
+		d := patchutil.Dat{Locale: Flag.Locale}
+
+		pErr := d.PackWithIndex(a[0], a[1], a[2])
+		if pErr != nil {
+			fmt.Fprintf(os.Stderr, "Error packing patch: %v\n", pErr)
+		}
+
+		return pErr
+	}, "PackWithIndex", func(_, elapsed string) {
+		fmt.Fprintf(os.Stdout, "Took %s\n", elapsed)
+	})
+}
+
 // unpackFromFile command.
 func unpackFromFile(a ...string) error {
 	return timeutil.Timer(func() error {
-		uErr := patchutil.UnpackFromFile(a[0], a[1])
+		d := patchutil.Dat{Locale: Flag.Locale}
+
+		uErr := d.UnpackFromFile(a[0], a[1])
 		if uErr != nil {
 			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
 		}
