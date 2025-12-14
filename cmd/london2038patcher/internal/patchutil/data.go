@@ -1,6 +1,7 @@
 package patchutil
 
 import (
+	"bufio"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -25,11 +26,7 @@ func (idx *Index) Unpack(path, output string, locales []int16) error {
 	}
 
 	for _, entry := range idx.Files {
-		if entry.FileSize <= 0 {
-			continue
-		}
-
-		if !localeAllowed(allowed, entry.Localization) {
+		if entry.FileSize <= 0 || !localeAllowed(allowed, entry.Localization) {
 			continue
 		}
 
@@ -53,9 +50,23 @@ func (idx *Index) Unpack(path, output string, locales []int16) error {
 			return errutil.WithFrame(err)
 		}
 
-		if err := os.WriteFile(target, buf, 0o644); err != nil {
+		outFile, err := os.Create(target)
+		if err != nil {
 			return errutil.WithFrame(err)
 		}
+
+		bw := bufio.NewWriterSize(outFile, 4*1024*1024)
+		if _, err := bw.Write(buf); err != nil {
+			outFile.Close()
+			return errutil.WithFrame(err)
+		}
+
+		if err := bw.Flush(); err != nil {
+			outFile.Close()
+			return errutil.WithFrame(err)
+		}
+
+		outFile.Close()
 	}
 
 	return nil
@@ -70,6 +81,9 @@ func (idx *Index) Pack(path, output string, locales []int16) error {
 		return errutil.WithFrame(err)
 	}
 	defer f.Close()
+
+	bw := bufio.NewWriterSize(f, 4*1024*1024)
+	defer bw.Flush()
 
 	for _, entry := range idx.Files {
 		if !localeAllowed(allowed, entry.Localization) {
@@ -87,12 +101,10 @@ func (idx *Index) Pack(path, output string, locales []int16) error {
 			buf = make([]byte, entry.FileSize)
 
 			fmt.Fprintf(os.Stdout, "Missing file, zeroing: %s\n", source)
-
 		case int64(len(buf)) < entry.FileSize:
 			padded := make([]byte, entry.FileSize)
 			copy(padded, buf)
 			buf = padded
-
 		case int64(len(buf)) > entry.FileSize:
 			buf = buf[:entry.FileSize]
 		}
@@ -101,7 +113,7 @@ func (idx *Index) Pack(path, output string, locales []int16) error {
 			return errutil.WithFrame(err)
 		}
 
-		if _, err := f.Write(buf); err != nil {
+		if _, err := bw.Write(buf); err != nil {
 			return errutil.WithFrame(err)
 		}
 
@@ -169,6 +181,9 @@ func (lm *LocaleMap) PackWithIndex(path, indexFile, datFile string, locales []in
 	}
 	defer f.Close()
 
+	bw := bufio.NewWriterSize(f, 4*1024*1024)
+	defer bw.Flush()
+
 	for _, entry := range idx.Files {
 		source := filepath.Join(path, entry.FileName)
 		if entry.Localization != 0 {
@@ -180,7 +195,7 @@ func (lm *LocaleMap) PackWithIndex(path, indexFile, datFile string, locales []in
 			buf = make([]byte, entry.FileSize)
 		}
 
-		if _, err := f.Write(buf); err != nil {
+		if _, err := bw.Write(buf); err != nil {
 			return errutil.WithFrame(err)
 		}
 

@@ -1,14 +1,15 @@
 package patchutil
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
+	"os"
 	"unicode/utf16"
 
 	"github.com/ricochhet/london2038patcher/pkg/byteutil"
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
-	"github.com/ricochhet/london2038patcher/pkg/jsonutil"
 )
 
 type Header struct {
@@ -67,7 +68,27 @@ func DecodeFile(path, output string) ([]byte, error) {
 		return nil, err
 	}
 
-	return jsonutil.MarshalAndWrite(output, idx)
+	outFile, err := os.Create(output)
+	if err != nil {
+		return nil, errutil.WithFrame(err)
+	}
+	defer outFile.Close()
+
+	data, err := json.MarshalIndent(idx, "", "  ")
+	if err != nil {
+		return nil, errutil.WithFrame(err)
+	}
+
+	bw := bufio.NewWriterSize(outFile, 4*1024*1024)
+	if _, err := bw.Write(data); err != nil {
+		return nil, errutil.WithFrame(err)
+	}
+
+	if err := bw.Flush(); err != nil {
+		return nil, errutil.WithFrame(err)
+	}
+
+	return data, nil
 }
 
 // EncodeFile encodes an index file to the specified output.
@@ -91,11 +112,18 @@ func EncodeFile(path, output string) error {
 		return err
 	}
 
-	if err := fsutil.Write(output, buf); err != nil {
+	outFile, err := os.Create(output)
+	if err != nil {
+		return errutil.WithFrame(err)
+	}
+	defer outFile.Close()
+
+	bw := bufio.NewWriterSize(outFile, 4*1024*1024)
+	if _, err := bw.Write(buf); err != nil {
 		return errutil.WithFrame(err)
 	}
 
-	return nil
+	return bw.Flush()
 }
 
 // Decode decodes the byte buffer into an Index.
