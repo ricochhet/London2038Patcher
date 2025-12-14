@@ -6,16 +6,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 )
 
 // Unpack unpacks the specified path with the provided index.
-func (idx *Index) Unpack(path, output, localization string, appendLocale bool) error {
-	if err := checkLocale(localization); err != nil {
-		return err
-	}
+func (idx *Index) Unpack(path, output string, locales []int16) error {
+	allowed := localeSet(locales)
 
 	f, err := os.Open(path)
 	if err != nil {
@@ -32,22 +29,20 @@ func (idx *Index) Unpack(path, output, localization string, appendLocale bool) e
 			continue
 		}
 
-		if entry.Localization != 0 && entry.Localization != locales[localization] {
+		if !localeAllowed(allowed, entry.Localization) {
 			continue
 		}
 
 		target := filepath.Join(output, filepath.FromSlash(entry.FileName))
-
-		if appendLocale && entry.Localization != 0 {
-			ext := fmt.Sprintf(".%d", entry.Localization)
-			target += ext
+		if entry.Localization != 0 {
+			target += fmt.Sprintf(".%d", entry.Localization)
 		}
 
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return errutil.WithFrame(err)
 		}
 
-		fmt.Fprintf(os.Stdout, "Extracting: %s (%d bytes)\n", entry.FileName, entry.FileSize)
+		fmt.Fprintf(os.Stdout, "Extracting: %s (%d bytes)\n", target, entry.FileSize)
 
 		if _, err := f.Seek(entry.DatOffset, io.SeekStart); err != nil {
 			return errutil.WithFrame(err)
@@ -67,10 +62,8 @@ func (idx *Index) Unpack(path, output, localization string, appendLocale bool) e
 }
 
 // Pack packs the specified path with the provided index.
-func (idx *Index) Pack(path, output, localization string, appendLocale bool) error {
-	if err := checkLocale(localization); err != nil {
-		return err
-	}
+func (idx *Index) Pack(path, output string, locales []int16) error {
+	allowed := localeSet(locales)
 
 	f, err := os.Create(output)
 	if err != nil {
@@ -79,13 +72,12 @@ func (idx *Index) Pack(path, output, localization string, appendLocale bool) err
 	defer f.Close()
 
 	for _, entry := range idx.Files {
-		if entry.Localization != 0 && entry.Localization != locales[localization] {
+		if !localeAllowed(allowed, entry.Localization) {
 			continue
 		}
 
 		source := filepath.Join(path, filepath.FromSlash(entry.FileName))
-
-		if appendLocale && entry.Localization != 0 {
+		if entry.Localization != 0 {
 			source += fmt.Sprintf(".%d", entry.Localization)
 		}
 
@@ -120,10 +112,8 @@ func (idx *Index) Pack(path, output, localization string, appendLocale bool) err
 }
 
 // PackWithIndex generates both a .dat and .idx file from the input folder.
-func PackWithIndex(path, indexFile, datFile, localization string, appendLocale bool) error {
-	if err := checkLocale(localization); err != nil {
-		return err
-	}
+func (lm *LocaleMap) PackWithIndex(path, indexFile, datFile string, locales []int16) error {
+	allowed := localeSet(locales)
 
 	var idx Index
 
@@ -143,10 +133,10 @@ func PackWithIndex(path, indexFile, datFile, localization string, appendLocale b
 		}
 
 		file := filepath.ToSlash(rel)
-		loc := int16(0)
+		file, loc := lm.removeLocaleExt(file)
 
-		if appendLocale {
-			file, loc = removeLocaleExt(file)
+		if !localeAllowed(allowed, loc) {
+			return nil
 		}
 
 		buf, err := os.ReadFile(target)
@@ -181,7 +171,7 @@ func PackWithIndex(path, indexFile, datFile, localization string, appendLocale b
 
 	for _, entry := range idx.Files {
 		source := filepath.Join(path, entry.FileName)
-		if appendLocale && entry.Localization != 0 {
+		if entry.Localization != 0 {
 			source += fmt.Sprintf(".%d", entry.Localization)
 		}
 
@@ -197,44 +187,10 @@ func PackWithIndex(path, indexFile, datFile, localization string, appendLocale b
 		fmt.Fprintf(os.Stdout, "Packing: %s (%d bytes)\n", source, len(buf))
 	}
 
-	buf, err := Encode(&idx)
+	data, err := Encode(&idx)
 	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(indexFile, buf, 0o644); err != nil {
-		return errutil.WithFrame(err)
-	}
-
-	return nil
-}
-
-// check if locale is a (known) validate locale.
-func checkLocale(s string) error {
-	if locales[s] != 0 {
-		return nil
-	}
-
-	return errutil.WithFramef("Locale: %s does not exist in locales", s)
-}
-
-// removeLocaleExt removes the locale extension from a file name if it exists.
-func removeLocaleExt(s string) (string, int16) {
-	ext := filepath.Ext(s)
-	if len(ext) <= 1 {
-		return s, 0
-	}
-
-	n, err := strconv.Atoi(ext[1:])
-	if err != nil {
-		return s, 0
-	}
-
-	for _, code := range locales {
-		if int16(n) == code {
-			return s[:len(s)-len(ext)], int16(n)
-		}
-	}
-
-	return s, 0
+	return os.WriteFile(indexFile, data, 0o644)
 }

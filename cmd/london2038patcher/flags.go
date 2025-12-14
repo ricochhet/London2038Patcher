@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"strings"
 )
 
 type Flags struct {
@@ -11,7 +12,7 @@ type Flags struct {
 	PatchDir     bool
 	Version      bool
 	Timeout      int
-	Locale       string
+	Locales      string
 }
 
 var Flag = NewFlags()
@@ -50,5 +51,10 @@ func registerFlags(fs *flag.FlagSet, f *Flags) {
 	fs.BoolVar(&f.PatchDir, "patch-dir", false, "Use patch directory for files")
 	fs.BoolVar(&f.Version, "version", false, "Show version information")
 	fs.IntVar(&f.Timeout, "timeout", 0, "Set download timeout")
-	fs.StringVar(&f.Locale, "locale", "en", "Set locale code for un/packing")
+	fs.StringVar(&f.Locales, "locales", "en", "Set locale code for un/packing")
+}
+
+// toSlice converts a string to a slice.
+func toSlice(s, sep string) []string {
+	return strings.Split(s, sep)
 }

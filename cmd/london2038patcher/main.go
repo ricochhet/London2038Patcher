@@ -40,7 +40,11 @@ func main() {
 		return
 	}
 
-	cmd := commands()
+	cmd, err := commands()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
+	}
+
 	if cmd {
 		return
 	}
@@ -61,73 +65,41 @@ func main() {
 }
 
 // commands handles the specified command flags.
-func commands() bool {
+func commands() (bool, error) {
 	if flag.NArg() == 0 {
-		return false
+		return false, nil
 	}
 
 	cmd := strings.ToLower(flag.Args()[0])
 	args := flag.Args()[1:]
 
+	d := patchutil.Dat{
+		LocaleMap: patchutil.NewDefaultLocales(),
+		Locales:   toSlice(Flag.Locales, ","),
+	}
+
 	switch cmd {
 	case "decodeidx":
-		if flag.NArg() < 3 {
-			usage()
-		}
-
-		_ = decode(args...)
-
-		return true
+		check(false, 3)
+		return true, decode(args...)
 	case "encodeidx":
-		if flag.NArg() < 3 {
-			usage()
-		}
-
-		_ = encode(args...)
-
-		return true
+		check(false, 3)
+		return true, encode(args...)
 	case "unpack":
-		if flag.NArg() < 4 {
-			usage()
-		}
-
-		_ = unpack(args...)
-
-		return true
+		check(false, 4)
+		return true, unpack(d, args...)
 	case "pack":
-		if flag.NArg() < 4 {
-			usage()
-		}
-
-		_ = pack(args...)
-
-		return true
+		check(false, 4)
+		return true, pack(d, args...)
 	case "packwithidx":
-		if flag.NArg() < 4 {
-			usage()
-		}
-
-		_ = packWithIdx(args...)
-
-		return true
+		check(false, 4)
+		return true, packWithIdx(d, args...)
 	case "unpackfromfile":
-		if flag.NArg() < 3 {
-			usage()
-		}
-
-		_ = unpackFromFile(args...)
-
-		return true
+		check(false, 3)
+		return true, unpackFromFile(d, args...)
 	case "regedit":
-		maybeUnsupported()
-
-		if flag.NArg() < 3 {
-			usage()
-		}
-
-		_ = regedit(args...)
-
-		return true
+		check(true, 3)
+		return true, regedit(args...)
 	case "help", "h":
 		usage()
 	}
@@ -136,7 +108,18 @@ func commands() bool {
 		cmdutil.Pause()
 	}
 
-	return false
+	return false, nil
+}
+
+// check handles checks for commands.
+func check(canBeUnsupported bool, v int) {
+	if canBeUnsupported {
+		maybeUnsupported()
+	}
+
+	if flag.NArg() < v {
+		usage()
+	}
 }
 
 // download command.
@@ -182,10 +165,8 @@ func encode(a ...string) error {
 }
 
 // unpack command.
-func unpack(a ...string) error {
+func unpack(d patchutil.Dat, a ...string) error {
 	return timeutil.Timer(func() error {
-		d := patchutil.Dat{Locale: Flag.Locale}
-
 		uErr := d.Unpack(a[0], a[1], a[2])
 		if uErr != nil {
 			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
@@ -198,10 +179,8 @@ func unpack(a ...string) error {
 }
 
 // pack command.
-func pack(a ...string) error {
+func pack(d patchutil.Dat, a ...string) error {
 	return timeutil.Timer(func() error {
-		d := patchutil.Dat{Locale: Flag.Locale}
-
 		pErr := d.Pack(a[0], a[1], a[2])
 		if pErr != nil {
 			fmt.Fprintf(os.Stderr, "Error packing patch: %v\n", pErr)
@@ -214,10 +193,8 @@ func pack(a ...string) error {
 }
 
 // packWithIdx command.
-func packWithIdx(a ...string) error {
+func packWithIdx(d patchutil.Dat, a ...string) error {
 	return timeutil.Timer(func() error {
-		d := patchutil.Dat{Locale: Flag.Locale}
-
 		pErr := d.PackWithIndex(a[0], a[1], a[2])
 		if pErr != nil {
 			fmt.Fprintf(os.Stderr, "Error packing patch: %v\n", pErr)
@@ -230,10 +207,8 @@ func packWithIdx(a ...string) error {
 }
 
 // unpackFromFile command.
-func unpackFromFile(a ...string) error {
+func unpackFromFile(d patchutil.Dat, a ...string) error {
 	return timeutil.Timer(func() error {
-		d := patchutil.Dat{Locale: Flag.Locale}
-
 		uErr := d.UnpackFromFile(a[0], a[1])
 		if uErr != nil {
 			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
