@@ -7,12 +7,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 )
 
 // Unpack unpacks the specified path with the provided index.
-func (idx *Index) Unpack(path, output string, locales []int16) error {
+func (idx *Index) Unpack(path, output string, locales []int16, archs []string) error {
 	allowed := localeSet(locales)
 
 	f, err := os.Open(path)
@@ -26,7 +27,8 @@ func (idx *Index) Unpack(path, output string, locales []int16) error {
 	}
 
 	for _, entry := range idx.Files {
-		if entry.FileSize <= 0 || !localeAllowed(allowed, entry.Localization) {
+		if entry.FileSize <= 0 || !localeAllowed(allowed, entry.Localization) ||
+			skipArch(entry, archs) {
 			continue
 		}
 
@@ -73,7 +75,7 @@ func (idx *Index) Unpack(path, output string, locales []int16) error {
 }
 
 // Pack packs the specified path with the provided index.
-func (idx *Index) Pack(path, output string, locales []int16) error {
+func (idx *Index) Pack(path, output string, locales []int16, archs []string) error {
 	allowed := localeSet(locales)
 
 	f, err := os.Create(output)
@@ -86,7 +88,7 @@ func (idx *Index) Pack(path, output string, locales []int16) error {
 	defer bw.Flush()
 
 	for _, entry := range idx.Files {
-		if !localeAllowed(allowed, entry.Localization) {
+		if !localeAllowed(allowed, entry.Localization) || skipArch(entry, archs) {
 			continue
 		}
 
@@ -124,7 +126,11 @@ func (idx *Index) Pack(path, output string, locales []int16) error {
 }
 
 // PackWithIndex generates both a .dat and .idx file from the input folder.
-func (lm *LocaleMap) PackWithIndex(path, indexFile, datFile string, locales []int16) error {
+func (lm *LocaleMap) PackWithIndex(
+	path, indexFile, datFile string,
+	locales []int16,
+	archs []string,
+) error {
 	allowed := localeSet(locales)
 
 	var idx Index
@@ -134,7 +140,57 @@ func (lm *LocaleMap) PackWithIndex(path, indexFile, datFile string, locales []in
 
 	var offset int64
 
-	err := filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
+	if err := lm.readIntoIndex(&idx, path, offset, allowed); err != nil {
+		return err
+	}
+
+	f, err := os.Create(datFile)
+	if err != nil {
+		return errutil.WithFrame(err)
+	}
+	defer f.Close()
+
+	bw := bufio.NewWriterSize(f, 4*1024*1024)
+	defer bw.Flush()
+
+	for _, entry := range idx.Files {
+		if skipArch(entry, archs) {
+			continue
+		}
+
+		source := filepath.Join(path, entry.FileName)
+		if entry.Localization != 0 {
+			source += fmt.Sprintf(".%d", entry.Localization)
+		}
+
+		buf, err := os.ReadFile(source)
+		if err != nil {
+			buf = make([]byte, entry.FileSize)
+		}
+
+		if _, err := bw.Write(buf); err != nil {
+			return errutil.WithFrame(err)
+		}
+
+		fmt.Fprintf(os.Stdout, "Packing: %s (%d bytes)\n", source, len(buf))
+	}
+
+	data, err := Encode(&idx)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(indexFile, data, 0o644)
+}
+
+// readIntoIndex reads all files in the path and adds them to the index.
+func (lm *LocaleMap) readIntoIndex(
+	idx *Index,
+	path string,
+	offset int64,
+	allowed map[int16]struct{},
+) error {
+	return filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err
 		}
@@ -171,41 +227,27 @@ func (lm *LocaleMap) PackWithIndex(path, indexFile, datFile string, locales []in
 
 		return nil
 	})
-	if err != nil {
-		return err
+}
+
+// skipArch returns true if the architecture should be skipped.
+func skipArch(entry Entry, archs []string) bool {
+	if entry.UsedInX64 && entry.UsedInX86 {
+		return false
 	}
 
-	f, err := os.Create(datFile)
-	if err != nil {
-		return errutil.WithFrame(err)
-	}
-	defer f.Close()
-
-	bw := bufio.NewWriterSize(f, 4*1024*1024)
-	defer bw.Flush()
-
-	for _, entry := range idx.Files {
-		source := filepath.Join(path, entry.FileName)
-		if entry.Localization != 0 {
-			source += fmt.Sprintf(".%d", entry.Localization)
-		}
-
-		buf, err := os.ReadFile(source)
-		if err != nil {
-			buf = make([]byte, entry.FileSize)
-		}
-
-		if _, err := bw.Write(buf); err != nil {
-			return errutil.WithFrame(err)
-		}
-
-		fmt.Fprintf(os.Stdout, "Packing: %s (%d bytes)\n", source, len(buf))
+	if entry.UsedInX64 && !allowX64(archs) {
+		return true
 	}
 
-	data, err := Encode(&idx)
-	if err != nil {
-		return err
-	}
+	return entry.UsedInX86 && !allowX86(archs)
+}
 
-	return os.WriteFile(indexFile, data, 0o644)
+// allowX86 returns true if x86 arch is allowed.
+func allowX86(s []string) bool {
+	return slices.Contains(s, "x86")
+}
+
+// allowX64 returns true if x64 arch is allowed.
+func allowX64(s []string) bool {
+	return slices.Contains(s, "x64")
 }

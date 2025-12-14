@@ -13,6 +13,7 @@ type Flags struct {
 	Version      bool
 	Timeout      int
 	Locales      string
+	Archs        string
 }
 
 var Flag = NewFlags()
@@ -52,6 +53,7 @@ func registerFlags(fs *flag.FlagSet, f *Flags) {
 	fs.BoolVar(&f.Version, "version", false, "Show version information")
 	fs.IntVar(&f.Timeout, "timeout", 0, "Set download timeout")
 	fs.StringVar(&f.Locales, "locales", "en", "Set locale code for un/packing")
+	fs.StringVar(&f.Archs, "archs", "x64,x86", "Set architectures for un/packing")
 }
 
 // toSlice converts a string to a slice.

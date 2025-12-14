@@ -19,6 +19,7 @@ type Dat struct {
 	*LocaleMap
 
 	Locales []string
+	Archs   []string
 }
 
 // Unpack unpacks the patch file with the given index.
@@ -46,7 +47,7 @@ func (d *Dat) Unpack(index, patch, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	if err := idx.Unpack(patch, output, locales); err != nil {
+	if err := idx.Unpack(patch, output, locales, d.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -74,7 +75,7 @@ func (d *Dat) Pack(index, path, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	if err := idx.Pack(path, output, locales); err != nil {
+	if err := idx.Pack(path, output, locales, d.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -88,7 +89,7 @@ func (d *Dat) PackWithIndex(path, index, patch string) error {
 		return errutil.WithFrame(err)
 	}
 
-	if err := d.LocaleMap.PackWithIndex(path, index, patch, locales); err != nil {
+	if err := d.LocaleMap.PackWithIndex(path, index, patch, locales, d.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 

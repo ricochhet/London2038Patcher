@@ -76,6 +76,7 @@ func commands() (bool, error) {
 	d := patchutil.Dat{
 		LocaleMap: patchutil.NewDefaultLocales(),
 		Locales:   toSlice(Flag.Locales, ","),
+		Archs:     toSlice(Flag.Archs, ","),
 	}
 
 	switch cmd {
