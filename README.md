@@ -5,10 +5,10 @@ Lets you download the patches for the London 2038 modification for Hellgate: Lon
 Running `london2038patcher` without any arguments will download the London 2038 files to the current directory. Appending the `-patch-dir` argument will download the files into a directory formatted as `London2038Patcher/[CRC32]` where `[CRC32]` is a combined CRC32 hash of all file hashes specified in `checksums.xml`
 
 ### Unpacking Patch Files
-The tool supports unpacking the patch files for SP 1.2 and MP 2.0. Use `london2038patcher unpack path/to/patch.idx path/to/patch.dat path/to/unpack/to` to unpack patch files. You can optionally specify the localization to use, I did not bother to figure out all localization codes, adding the flag `--locale [code]` [(Locale Codes)](./cmd/london2038patcher/internal/patchutil/locales.go) will unpack those specific localization files if they exist.  
+The tool supports unpacking the patch files for SP 1.2 and MP 2.0. Use `london2038patcher unpack path/to/patch.idx path/to/patch.dat path/to/unpack/to` to unpack patch files. You can optionally specify the localization files to unpack, adding the flag `--locales [comma,seperated,codes]` [(Locale Codes)](./cmd/london2038patcher/internal/patchutil/locales.go) will unpack those specific localization files if they exist. If multiple files exist in the same path, but with different localizations, the localization code will be appended to the end of the file name.
 
 ### Packing Patch Files
-It is possible to pack files pack into it's original format. Use `london2038patcher pack path/to/patch.idx path/to/files path/to/patch.dat` to pack files, alternatively use `packWithIdx` to create a patch index instead of using a premade one. It does not support (un)packing all localizations at once with an original patch index, as it expects files in the same place, it will zero pad the missing files instead.
+It is possible to pack files pack into it's original format. Use `london2038patcher pack path/to/patch.idx path/to/files path/to/patch.dat` to pack files, alternatively use `packWithIdx` to create a patch index instead of using a premade one. If multiple language locales are specified, it will pack all of the localization files according to what the patch index specifies.
 
 ### Encoding/Decoding Patch Indexes
 You can decode a patch index using `london2038patcher decode path/to/patch.idx path/to/patch.json`, which will output a JSON representation of the patch index format. To encode, invert the decode command. 
