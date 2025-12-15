@@ -73,10 +73,17 @@ func commands() (bool, error) {
 	cmd := strings.ToLower(flag.Args()[0])
 	args := flag.Args()[1:]
 
+	lm := patchutil.NewDefaultLocaleRegistry()
+
+	locs, err := patchutil.NewLocaleFilter(lm, toSlice(Flag.Locales, ","))
+	if err != nil {
+		return true, err
+	}
+
 	d := patchutil.Dat{
-		LocaleMap: patchutil.NewDefaultLocales(),
-		Locales:   toSlice(Flag.Locales, ","),
-		Archs:     toSlice(Flag.Archs, ","),
+		LocaleRegistry: lm,
+		Locales:        locs,
+		Archs:          toSlice(Flag.Archs, ","),
 	}
 
 	switch cmd {

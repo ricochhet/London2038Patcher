@@ -16,9 +16,9 @@ type Patch struct {
 }
 
 type Dat struct {
-	*LocaleMap
+	*LocaleRegistry
 
-	Locales []string
+	Locales *LocaleFilter
 	Archs   []string
 }
 
@@ -42,12 +42,7 @@ func (d *Dat) Unpack(index, patch, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	locales, err := d.toInt(d.Locales)
-	if err != nil {
-		return errutil.WithFrame(err)
-	}
-
-	if err := idx.Unpack(patch, output, locales, d.Archs); err != nil {
+	if err := idx.Unpack(patch, output, d.Locales, d.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -70,12 +65,7 @@ func (d *Dat) Pack(index, path, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	locales, err := d.toInt(d.Locales)
-	if err != nil {
-		return errutil.WithFrame(err)
-	}
-
-	if err := idx.Pack(path, output, locales, d.Archs); err != nil {
+	if err := idx.Pack(path, output, d.Locales, d.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -84,12 +74,7 @@ func (d *Dat) Pack(index, path, output string) error {
 
 // Pack packs the path with the given index.
 func (d *Dat) PackWithIndex(path, index, patch string) error {
-	locales, err := d.toInt(d.Locales)
-	if err != nil {
-		return errutil.WithFrame(err)
-	}
-
-	if err := d.LocaleMap.PackWithIndex(path, index, patch, locales, d.Archs); err != nil {
+	if err := d.LocaleRegistry.PackWithIndex(path, index, patch, d.Locales, d.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 

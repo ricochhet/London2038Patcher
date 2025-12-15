@@ -7,27 +7,23 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 )
 
-type LocaleMap struct {
+type LocaleRegistry struct {
 	m map[string]int16
 }
 
-// NewDefaultLocales returns a new LocaleMap with default values.
-func NewDefaultLocales() *LocaleMap {
-	return &LocaleMap{m: map[string]int16{
-		"en":  17509,
-		"unk": 26952,
-	}}
+type LocaleFilter struct {
+	allowed map[int16]struct{}
 }
 
-// toInt converts a slice of strings into an int16 slice based on the LocaleMap.
-func (lm *LocaleMap) toInt(m []string) ([]int16, error) {
-	if len(m) == 0 {
-		return nil, nil
+// NewLocaleFilter returns a new locale filter based on the local registry.
+func NewLocaleFilter(lr *LocaleRegistry, codes []string) (*LocaleFilter, error) {
+	if len(codes) == 0 {
+		return &LocaleFilter{allowed: nil}, nil
 	}
 
-	out := make([]int16, len(m))
-	for i, code := range m {
-		loc, ok := lm.m[code]
+	set := make(map[int16]struct{}, len(codes))
+	for _, code := range codes {
+		loc, ok := lr.m[code]
 		if !ok || loc == 0 {
 			return nil, errutil.WithFramef(
 				"Locale: %q does not exist in locales",
@@ -35,39 +31,33 @@ func (lm *LocaleMap) toInt(m []string) ([]int16, error) {
 			)
 		}
 
-		out[i] = loc
+		set[loc] = struct{}{}
 	}
 
-	return out, nil
+	return &LocaleFilter{allowed: set}, nil
 }
 
-// localeSet converts a slice of locale ints to a map.
-func localeSet(m []int16) map[int16]struct{} {
-	if len(m) == 0 {
-		return nil
-	}
-
-	set := make(map[int16]struct{}, len(m))
-	for _, l := range m {
-		set[l] = struct{}{}
-	}
-
-	return set
-}
-
-// localeAllowed returns true if the locale is in the map.
-func localeAllowed(m map[int16]struct{}, v int16) bool {
-	if m == nil || v == 0 {
+// Allowed returns true if the code is allowed by the location filter.
+func (lf *LocaleFilter) Allowed(v int16) bool {
+	if lf == nil || lf.allowed == nil || v == 0 {
 		return true
 	}
 
-	_, ok := m[v]
+	_, ok := lf.allowed[v]
 
 	return ok
 }
 
+// NewDefaultLocaleRegistry returns a new LocaleRegistry with default values.
+func NewDefaultLocaleRegistry() *LocaleRegistry {
+	return &LocaleRegistry{m: map[string]int16{
+		"en":  17509,
+		"unk": 26952,
+	}}
+}
+
 // removeLocaleExt removes the locale extension from a file name if it exists.
-func (lm *LocaleMap) removeLocaleExt(s string) (string, int16) {
+func (lm *LocaleRegistry) removeLocaleExt(s string) (string, int16) {
 	ext := filepath.Ext(s)
 	if len(ext) <= 1 {
 		return s, 0

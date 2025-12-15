@@ -13,9 +13,11 @@ import (
 )
 
 // Unpack unpacks the specified path with the provided index.
-func (idx *Index) Unpack(path, output string, locales []int16, archs []string) error {
-	allowed := localeSet(locales)
-
+func (idx *Index) Unpack(
+	path, output string,
+	locales *LocaleFilter,
+	archs []string,
+) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return errutil.WithFrame(err)
@@ -27,7 +29,8 @@ func (idx *Index) Unpack(path, output string, locales []int16, archs []string) e
 	}
 
 	for _, entry := range idx.Files {
-		if entry.FileSize <= 0 || !localeAllowed(allowed, entry.Localization) ||
+		if entry.FileSize <= 0 ||
+			!locales.Allowed(entry.Localization) ||
 			skipArch(entry, archs) {
 			continue
 		}
@@ -75,9 +78,11 @@ func (idx *Index) Unpack(path, output string, locales []int16, archs []string) e
 }
 
 // Pack packs the specified path with the provided index.
-func (idx *Index) Pack(path, output string, locales []int16, archs []string) error {
-	allowed := localeSet(locales)
-
+func (idx *Index) Pack(
+	path, output string,
+	locales *LocaleFilter,
+	archs []string,
+) error {
 	f, err := os.Create(output)
 	if err != nil {
 		return errutil.WithFrame(err)
@@ -88,7 +93,7 @@ func (idx *Index) Pack(path, output string, locales []int16, archs []string) err
 	defer bw.Flush()
 
 	for _, entry := range idx.Files {
-		if !localeAllowed(allowed, entry.Localization) || skipArch(entry, archs) {
+		if !locales.Allowed(entry.Localization) || skipArch(entry, archs) {
 			continue
 		}
 
@@ -126,25 +131,33 @@ func (idx *Index) Pack(path, output string, locales []int16, archs []string) err
 }
 
 // PackWithIndex generates both a .dat and .idx file from the input folder.
-func (lm *LocaleMap) PackWithIndex(
-	path, indexFile, datFile string,
-	locales []int16,
+func (lm *LocaleRegistry) PackWithIndex(
+	path, index, patch string,
+	locales *LocaleFilter,
 	archs []string,
 ) error {
-	allowed := localeSet(locales)
-
 	var idx Index
 
 	idx.Header.PatchType = 1
 	idx.Header.EndToken = 1147496776
 
+	return lm.packWithIndex(path, index, patch, &idx, locales, archs)
+}
+
+// PackWithIndex generates both a .dat and .idx file from the input folder.
+func (lm *LocaleRegistry) packWithIndex(
+	path, index, patch string,
+	idx *Index,
+	locales *LocaleFilter,
+	archs []string,
+) error {
 	var offset int64
 
-	if err := lm.readIntoIndex(&idx, path, offset, allowed); err != nil {
+	if err := lm.readIntoIndex(idx, path, offset, locales); err != nil {
 		return err
 	}
 
-	f, err := os.Create(datFile)
+	f, err := os.Create(patch)
 	if err != nil {
 		return errutil.WithFrame(err)
 	}
@@ -175,20 +188,20 @@ func (lm *LocaleMap) PackWithIndex(
 		fmt.Fprintf(os.Stdout, "Packing: %s (%d bytes)\n", source, len(buf))
 	}
 
-	data, err := Encode(&idx)
+	data, err := Encode(idx)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(indexFile, data, 0o644)
+	return os.WriteFile(index, data, 0o644)
 }
 
 // readIntoIndex reads all files in the path and adds them to the index.
-func (lm *LocaleMap) readIntoIndex(
+func (lm *LocaleRegistry) readIntoIndex(
 	idx *Index,
 	path string,
 	offset int64,
-	allowed map[int16]struct{},
+	locales *LocaleFilter,
 ) error {
 	return filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -203,7 +216,7 @@ func (lm *LocaleMap) readIntoIndex(
 		file := filepath.ToSlash(rel)
 		file, loc := lm.removeLocaleExt(file)
 
-		if !localeAllowed(allowed, loc) {
+		if !locales.Allowed(loc) {
 			return nil
 		}
 
