@@ -73,17 +73,17 @@ func commands() (bool, error) {
 	cmd := strings.ToLower(flag.Args()[0])
 	args := flag.Args()[1:]
 
-	lm := patchutil.NewDefaultLocaleRegistry()
+	lr := patchutil.NewDefaultLocaleRegistry()
 
-	locs, err := patchutil.NewLocaleFilter(lm, toSlice(Flag.Locales, ","))
+	lf, err := patchutil.NewLocaleFilter(lr, toSlice(Flag.Locales, ","))
 	if err != nil {
 		return true, err
 	}
 
-	d := patchutil.Dat{
-		LocaleRegistry: lm,
-		Locales:        locs,
-		Archs:          toSlice(Flag.Archs, ","),
+	d := patchutil.Options{
+		Registry: lr,
+		Filter:   lf,
+		Archs:    toSlice(Flag.Archs, ","),
 	}
 
 	switch cmd {
@@ -173,7 +173,7 @@ func encode(a ...string) error {
 }
 
 // unpack command.
-func unpack(d patchutil.Dat, a ...string) error {
+func unpack(d patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
 		uErr := d.Unpack(a[0], a[1], a[2])
 		if uErr != nil {
@@ -187,7 +187,7 @@ func unpack(d patchutil.Dat, a ...string) error {
 }
 
 // pack command.
-func pack(d patchutil.Dat, a ...string) error {
+func pack(d patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
 		pErr := d.Pack(a[0], a[1], a[2])
 		if pErr != nil {
@@ -201,7 +201,7 @@ func pack(d patchutil.Dat, a ...string) error {
 }
 
 // packWithIdx command.
-func packWithIdx(d patchutil.Dat, a ...string) error {
+func packWithIdx(d patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
 		pErr := d.PackWithIndex(a[0], a[1], a[2])
 		if pErr != nil {
@@ -215,7 +215,7 @@ func packWithIdx(d patchutil.Dat, a ...string) error {
 }
 
 // unpackFromFile command.
-func unpackFromFile(d patchutil.Dat, a ...string) error {
+func unpackFromFile(d patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
 		uErr := d.UnpackFromFile(a[0], a[1])
 		if uErr != nil {

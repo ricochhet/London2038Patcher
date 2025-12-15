@@ -15,15 +15,14 @@ type Patch struct {
 	Dat string `json:"dat"`
 }
 
-type Dat struct {
-	*LocaleRegistry
-
-	Locales *LocaleFilter
-	Archs   []string
+type Options struct {
+	Registry *LocaleRegistry
+	Filter   *LocaleFilter
+	Archs    []string
 }
 
 // Unpack unpacks the patch file with the given index.
-func (d *Dat) Unpack(index, patch, output string) error {
+func (o *Options) Unpack(index, patch, output string) error {
 	if !fsutil.Exists(index) {
 		return errutil.WithFramef("path does not exist: %s", index)
 	}
@@ -42,7 +41,7 @@ func (d *Dat) Unpack(index, patch, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	if err := idx.Unpack(patch, output, d.Locales, d.Archs); err != nil {
+	if err := idx.Unpack(patch, output, o.Filter, o.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -50,7 +49,7 @@ func (d *Dat) Unpack(index, patch, output string) error {
 }
 
 // Pack packs the path with the given index.
-func (d *Dat) Pack(index, path, output string) error {
+func (o *Options) Pack(index, path, output string) error {
 	if !fsutil.Exists(index) {
 		return errutil.WithFramef("path does not exist: %s", index)
 	}
@@ -65,7 +64,7 @@ func (d *Dat) Pack(index, path, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	if err := idx.Pack(path, output, d.Locales, d.Archs); err != nil {
+	if err := idx.Pack(path, output, o.Filter, o.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -73,8 +72,8 @@ func (d *Dat) Pack(index, path, output string) error {
 }
 
 // Pack packs the path with the given index.
-func (d *Dat) PackWithIndex(path, index, patch string) error {
-	if err := d.LocaleRegistry.PackWithIndex(path, index, patch, d.Locales, d.Archs); err != nil {
+func (o *Options) PackWithIndex(path, index, patch string) error {
+	if err := o.Registry.PackWithIndex(path, index, patch, o.Filter, o.Archs); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -82,7 +81,7 @@ func (d *Dat) PackWithIndex(path, index, patch string) error {
 }
 
 // UnpackFromFile unpacks the patches from the specified file to the given output.
-func (d *Dat) UnpackFromFile(path, output string) error {
+func (o *Options) UnpackFromFile(path, output string) error {
 	if !fsutil.Exists(path) {
 		return errutil.WithFramef("path does not exist: %s", path)
 	}
@@ -92,13 +91,13 @@ func (d *Dat) UnpackFromFile(path, output string) error {
 		return err
 	}
 
-	return d.unpackFromFile(output, p)
+	return o.unpackFromFile(output, p)
 }
 
 // unpackFromFile unpacks the patch files specified to the given output.
-func (d *Dat) unpackFromFile(output string, patches *Patches) error {
+func (o *Options) unpackFromFile(output string, patches *Patches) error {
 	for _, patch := range patches.Patches {
-		if err := d.Unpack(patch.Idx, patch.Dat, output); err != nil {
+		if err := o.Unpack(patch.Idx, patch.Dat, output); err != nil {
 			return err
 		}
 	}
