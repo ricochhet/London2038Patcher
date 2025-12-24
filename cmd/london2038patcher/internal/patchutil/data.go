@@ -17,6 +17,7 @@ func (idx *Index) Unpack(
 	path, output string,
 	locales *LocaleFilter,
 	archs []string,
+	opts *IdxOptions,
 ) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -31,7 +32,7 @@ func (idx *Index) Unpack(
 	for _, entry := range idx.Files {
 		if entry.FileSize <= 0 ||
 			!locales.Allowed(entry.Localization) ||
-			skipArch(entry, archs) {
+			entry.skipArch(archs) {
 			continue
 		}
 
@@ -71,6 +72,10 @@ func (idx *Index) Unpack(
 			return errutil.WithFrame(err)
 		}
 
+		if opts.Debug {
+			_ = entry.validateCRC32(buf)
+		}
+
 		outFile.Close()
 	}
 
@@ -82,6 +87,7 @@ func (idx *Index) Pack(
 	path, output string,
 	locales *LocaleFilter,
 	archs []string,
+	opts *IdxOptions,
 ) error {
 	f, err := os.Create(output)
 	if err != nil {
@@ -93,7 +99,7 @@ func (idx *Index) Pack(
 	defer bw.Flush()
 
 	for _, entry := range idx.Files {
-		if !locales.Allowed(entry.Localization) || skipArch(entry, archs) {
+		if !locales.Allowed(entry.Localization) || entry.skipArch(archs) {
 			continue
 		}
 
@@ -124,6 +130,10 @@ func (idx *Index) Pack(
 			return errutil.WithFrame(err)
 		}
 
+		if opts.Debug {
+			_ = entry.validateCRC32(buf)
+		}
+
 		fmt.Fprintf(os.Stdout, "Packing: %s (%d bytes)\n", source, len(buf))
 	}
 
@@ -135,13 +145,14 @@ func (lm *LocaleRegistry) PackWithIndex(
 	path, index, patch string,
 	locales *LocaleFilter,
 	archs []string,
+	opts *IdxOptions,
 ) error {
 	var idx Index
 
 	idx.Header.PatchType = 1
 	idx.Header.EndToken = 1147496776
 
-	return lm.packWithIndex(path, index, patch, &idx, locales, archs)
+	return lm.packWithIndex(path, index, patch, &idx, locales, archs, opts)
 }
 
 // PackWithIndex generates both a .dat and .idx file from the input folder.
@@ -150,6 +161,7 @@ func (lm *LocaleRegistry) packWithIndex(
 	idx *Index,
 	locales *LocaleFilter,
 	archs []string,
+	opts *IdxOptions,
 ) error {
 	var offset int64
 
@@ -166,8 +178,10 @@ func (lm *LocaleRegistry) packWithIndex(
 	bw := bufio.NewWriterSize(f, 4*1024*1024)
 	defer bw.Flush()
 
-	for _, entry := range idx.Files {
-		if skipArch(entry, archs) {
+	for i := range idx.Files {
+		entry := &idx.Files[i]
+
+		if entry.skipArch(archs) {
 			continue
 		}
 
@@ -183,6 +197,10 @@ func (lm *LocaleRegistry) packWithIndex(
 
 		if _, err := bw.Write(buf); err != nil {
 			return errutil.WithFrame(err)
+		}
+
+		if opts.CRC32 {
+			entry.Hash = crc32.ChecksumIEEE(buf)
 		}
 
 		fmt.Fprintf(os.Stdout, "Packing: %s (%d bytes)\n", source, len(buf))
@@ -242,17 +260,38 @@ func (lm *LocaleRegistry) readIntoIndex(
 	})
 }
 
-// skipArch returns true if the architecture should be skipped.
-func skipArch(entry Entry, archs []string) bool {
-	if entry.UsedInX64 && entry.UsedInX86 {
-		return false
-	}
-
-	if entry.UsedInX64 && !allowX64(archs) {
+// validateCRC32 returns true if the entry hash and buffer hash match.
+//
+//nolint:unparam // unused
+func (e *Entry) validateCRC32(buf []byte) bool {
+	crc := crc32.ChecksumIEEE(buf)
+	if e.Hash == crc {
+		fmt.Fprintf(os.Stdout, "hashes match for file %s (%d bytes)\n", e.FileName, e.FileSize)
 		return true
 	}
 
-	return entry.UsedInX86 && !allowX86(archs)
+	fmt.Fprintf(
+		os.Stdout,
+		"hash mismatch for file %s (%d bytes), buffer has %d bytes\n",
+		e.FileName,
+		e.FileSize,
+		len(buf),
+	)
+
+	return false
+}
+
+// skipArch returns true if the architecture should be skipped.
+func (e *Entry) skipArch(archs []string) bool {
+	if e.UsedInX64 && e.UsedInX86 {
+		return false
+	}
+
+	if e.UsedInX64 && !allowX64(archs) {
+		return true
+	}
+
+	return e.UsedInX86 && !allowX86(archs)
 }
 
 // allowX86 returns true if x86 arch is allowed.

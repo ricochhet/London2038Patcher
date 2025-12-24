@@ -83,7 +83,10 @@ func commands() (bool, error) {
 	d := patchutil.Options{
 		Registry: lr,
 		Filter:   lf,
-		Archs:    toSlice(Flag.Archs, ","),
+		IdxOptions: &patchutil.IdxOptions{
+			CRC32: Flag.CRC32,
+		},
+		Archs: toSlice(Flag.Archs, ","),
 	}
 
 	switch cmd {

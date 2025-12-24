@@ -15,12 +15,6 @@ type Patch struct {
 	Dat string `json:"dat"`
 }
 
-type Options struct {
-	Registry *LocaleRegistry
-	Filter   *LocaleFilter
-	Archs    []string
-}
-
 // Unpack unpacks the patch file with the given index.
 func (o *Options) Unpack(index, patch, output string) error {
 	if !fsutil.Exists(index) {
@@ -41,7 +35,7 @@ func (o *Options) Unpack(index, patch, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	if err := idx.Unpack(patch, output, o.Filter, o.Archs); err != nil {
+	if err := idx.Unpack(patch, output, o.Filter, o.Archs, o.IdxOptions); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -64,7 +58,7 @@ func (o *Options) Pack(index, path, output string) error {
 		return errutil.WithFrame(err)
 	}
 
-	if err := idx.Pack(path, output, o.Filter, o.Archs); err != nil {
+	if err := idx.Pack(path, output, o.Filter, o.Archs, o.IdxOptions); err != nil {
 		return errutil.WithFrame(err)
 	}
 
@@ -73,7 +67,7 @@ func (o *Options) Pack(index, path, output string) error {
 
 // Pack packs the path with the given index.
 func (o *Options) PackWithIndex(path, index, patch string) error {
-	if err := o.Registry.PackWithIndex(path, index, patch, o.Filter, o.Archs); err != nil {
+	if err := o.Registry.PackWithIndex(path, index, patch, o.Filter, o.Archs, o.IdxOptions); err != nil {
 		return errutil.WithFrame(err)
 	}
 
