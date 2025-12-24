@@ -15,6 +15,11 @@ You can decode a patch index using `london2038patcher decode path/to/patch.idx p
 
 The tool does not support packing or unpacking of any other files or formats, use [Reanimator](https://hellgateaus.cyou/forum/hellgate-london-download-reanimator/reanimator-r1133/) if you need those features.
 
+#### Additional Commands & Flags
+
+- `--debug` can be used to validate the CRC32 hashes of files when un/packing against an existing index. This will not work properly if an index was not created with CRC32 support.
+- `--crc32` is used to create CRC32 hashes when using the `packWithIdx` command.
+
 ## Requirements (Building)
 - Go 1.25.4 or later.
 - GCC 15.1.0 or later.
