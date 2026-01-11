@@ -1,8 +1,17 @@
 package pathutil
 
-import "strings"
+import (
+	"path/filepath"
+	"runtime"
+	"strings"
+)
 
 // Normalize replaces all back slashes with forward slashes.
 func Normalize(path string) string {
-	return strings.ReplaceAll(path, "\\", "/")
+	clean := filepath.Clean(path)
+	if runtime.GOOS == "windows" {
+		clean = strings.ReplaceAll(clean, "\\", "/")
+	}
+
+	return clean
 }

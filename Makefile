@@ -76,7 +76,7 @@ patcher-darwin-arm64: fmt
 	$(call GO_BUILD_APP,darwin,arm64,$(PATCHER_BIN_NAME)-darwin-arm64,$(PATCHER_PATH))
 
 .PHONY: patcher-windows
-patcher-windows: fmt syso
+patcher-windows: fmt
 	$(call GO_BUILD_APP,windows,amd64,$(PATCHER_BIN_NAME).exe,$(PATCHER_PATH))
 
 # ----- FileServer -----

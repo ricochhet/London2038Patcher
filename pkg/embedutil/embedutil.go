@@ -7,7 +7,6 @@ import (
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
-	"github.com/ricochhet/london2038patcher/pkg/pathutil"
 )
 
 type EmbeddedFileSystem struct {
@@ -52,7 +51,7 @@ func (e *EmbeddedFileSystem) Dump(pattern, name string, dump func(File, []byte) 
 
 // MaybeReadEmbedded reads the filename from a path, falling back to embed if it does not exist.
 func (e *EmbeddedFileSystem) MaybeReadEmbedded(name string) ([]byte, error) {
-	path := pathutil.Normalize(filepath.Join(e.Initial, name))
+	path := filepath.ToSlash(filepath.Join(e.Initial, name))
 	if fsutil.Exists(path) {
 		return fsutil.Read(path)
 	}
@@ -62,7 +61,7 @@ func (e *EmbeddedFileSystem) MaybeReadEmbedded(name string) ([]byte, error) {
 
 // Read converts a file in the embedded filesystem into an array of bytes.
 func (e *EmbeddedFileSystem) Read(name string) ([]byte, error) {
-	b, err := e.FS.ReadFile(pathutil.Normalize(filepath.Join(e.Initial, name)))
+	b, err := e.FS.ReadFile(filepath.ToSlash(filepath.Join(e.Initial, name)))
 	if err != nil {
 		return nil, errutil.New("FS.ReadFile", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -78,7 +77,7 @@ func commands() (bool, error) {
 		return true, err
 	}
 
-	d := patchutil.Options{
+	o := patchutil.Options{
 		Registry: lr,
 		Filter:   lf,
 		IdxOptions: &patchutil.IdxOptions{
@@ -96,16 +95,16 @@ func commands() (bool, error) {
 		return true, encodeCmd(args...)
 	case "unpack":
 		check(false, 4)
-		return true, unpackCmd(d, args...)
+		return true, unpackCmd(o, args...)
 	case "pack":
 		check(false, 4)
-		return true, packCmd(d, args...)
+		return true, packCmd(o, args...)
 	case "packwithidx":
 		check(false, 4)
-		return true, packWithIdxCmd(d, args...)
+		return true, packWithIdxCmd(o, args...)
 	case "unpackfromfile":
 		check(false, 3)
-		return true, unpackFromFileCmd(d, args...)
+		return true, unpackFromFileCmd(o, args...)
 	case "regedit":
 		check(true, 3)
 		return true, regeditCmd(args...)
@@ -118,23 +117,4 @@ func commands() (bool, error) {
 	}
 
 	return false, nil
-}
-
-// check handles checks for commands.
-func check(canBeUnsupported bool, v int) {
-	if canBeUnsupported {
-		maybeUnsupported()
-	}
-
-	if flag.NArg() < v {
-		usage()
-	}
-}
-
-// maybeUnsupported exits with code 1 if the current runtime is not Windows.
-func maybeUnsupported() {
-	if runtime.GOOS != "windows" {
-		fmt.Fprintf(os.Stderr, "This command is unsupported on non-Windows machines.\n")
-		os.Exit(1)
-	}
 }

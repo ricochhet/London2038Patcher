@@ -5,7 +5,8 @@ import (
 )
 
 type Flags struct {
-	Version bool
+	Version    bool
+	ConfigFile string
 }
 
 var Flag = NewFlags()
@@ -23,5 +24,11 @@ func init() {
 
 // registerFlags registers all flags to the flagset.
 func registerFlags(fs *flag.FlagSet, f *Flags) {
+	fs.StringVar(
+		&f.ConfigFile,
+		"c",
+		"",
+		"Path to file server configuration",
+	)
 	fs.BoolVar(&f.Version, "version", false, "Show version information")
 }

@@ -8,23 +8,23 @@ import (
 )
 
 // listenAndServe creates an HTTP server at the specified address.
-func (s *ServerCtx) ListenAndServe(addr string) {
+func (h *HTTPServerCtx) ListenAndServe(addr string) *http.Server {
 	server := &http.Server{
 		Addr:    addr,
-		Handler: s.server.Router,
+		Handler: h.httpServer.Router,
 	}
 
 	fmt.Fprintf(os.Stdout, "Server listening on %s\n", addr)
 
 	var err error
 
-	if s.server.TLS.enabled() {
+	if h.httpServer.TLS.enabled() {
 		fmt.Fprintf(
 			os.Stdout,
 			"Server starting with tls: %s (cert) and %s (key)\n",
-			s.server.TLS.Cert, s.server.TLS.Key,
+			h.httpServer.TLS.Cert, h.httpServer.TLS.Key,
 		)
-		err = server.ListenAndServeTLS(s.server.TLS.Cert, s.server.TLS.Key)
+		err = server.ListenAndServeTLS(h.httpServer.TLS.Cert, h.httpServer.TLS.Key)
 	} else {
 		err = server.ListenAndServe()
 	}
@@ -32,6 +32,8 @@ func (s *ServerCtx) ListenAndServe(addr string) {
 	if err != nil && err != http.ErrServerClosed {
 		fmt.Fprintf(os.Stdout, "Server %s failed: %v\n", strings.TrimPrefix(addr, ":"), err)
 	}
+
+	return server
 }
 
 // enabled returns true if TLS is cert and key file is valid.

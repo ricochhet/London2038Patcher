@@ -2,16 +2,17 @@ package main
 
 import (
 	"embed"
+	"path/filepath"
 
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
 )
 
-//go:embed web/*
+//go:embed wwwroot/fileserver/*
 var webFS embed.FS
 
 func Embed() *embedutil.EmbeddedFileSystem {
 	return &embedutil.EmbeddedFileSystem{
-		Initial: "web",
+		Initial: filepath.ToSlash(filepath.Join("wwwroot", "fileserver")),
 		FS:      webFS,
 	}
 }

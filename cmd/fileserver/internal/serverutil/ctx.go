@@ -7,7 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type Server struct {
+type HTTPServer struct {
 	Router chi.Router
 
 	TLS TLS
@@ -18,9 +18,9 @@ type TLS struct {
 	Key  string
 }
 
-type ServerCtx struct {
-	mu     sync.Mutex
-	server *Server
+type HTTPServerCtx struct {
+	mu         sync.Mutex
+	httpServer *HTTPServer
 }
 
 // NewTLS creates an empty TLS.
@@ -28,35 +28,35 @@ func NewTLS() *TLS {
 	return &TLS{}
 }
 
-// NewServerCtx creates an empty PatcherCtx.
-func NewServerCtx() *ServerCtx {
-	return &ServerCtx{}
+// NewHTTPServerCtx creates an empty PatcherCtx.
+func NewHTTPServerCtx() *HTTPServerCtx {
+	return &HTTPServerCtx{}
 }
 
 // Get returns the patcher.
-func (p *ServerCtx) Get() *Server {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (h *HTTPServerCtx) Get() *HTTPServer {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
-	return p.server
+	return h.httpServer
 }
 
 // Set sets the patcher.
-func (p *ServerCtx) Set(server *Server) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (h *HTTPServerCtx) Set(server *HTTPServer) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
-	p.server = server
+	h.httpServer = server
 }
 
 // CopyFrom sets all patcher to the target.
-func (p *ServerCtx) CopyFrom(target *ServerCtx) {
-	p.Set(target.Get())
+func (h *HTTPServerCtx) CopyFrom(target *HTTPServerCtx) {
+	h.Set(target.Get())
 }
 
-func (p *ServerCtx) Handle(pattern string, handler http.Handler) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (h *HTTPServerCtx) Handle(pattern string, handler http.Handler) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
-	p.server.Router.Handle(pattern, handler)
+	h.httpServer.Router.Handle(pattern, handler)
 }

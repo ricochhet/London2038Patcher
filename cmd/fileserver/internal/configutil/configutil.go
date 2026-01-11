@@ -5,18 +5,27 @@ type Config struct {
 }
 
 type Server struct {
-	Port    int       `json:"port"`
-	Files   []File    `json:"files"`
-	Content []Content `json:"content"`
+	Port           int            `json:"port"`
+	FileEntries    []FileEntry    `json:"fileEntries"`
+	ContentEntries []ContentEntry `json:"contentEntries"`
 }
 
-type File struct {
+type FileEntry struct {
 	Route string `json:"route"`
 	Path  string `json:"path"`
+
+	Info Info `json:"info"`
 }
 
-type Content struct {
+type ContentEntry struct {
 	Route string `json:"route"`
 	Name  string `json:"name"`
 	Bytes []byte `json:"bytes"`
+
+	Info Info `json:"info"`
+}
+
+type Info struct {
+	StatusCode int               `json:"statusCode"`
+	Headers    map[string]string `json:"headers"`
 }

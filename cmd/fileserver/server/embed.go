@@ -20,26 +20,26 @@ func maybeRead(fs *embedutil.EmbeddedFileSystem, name string) []byte {
 }
 
 // newDefaultConfig creates a default Config with the embedded index bytes.
-func (s *Server) newDefaultConfig() *configutil.Config {
+func (c *Context) newDefaultConfig() *configutil.Config {
 	return &configutil.Config{
 		Servers: []configutil.Server{
 			{
 				Port: 8080,
-				Content: []configutil.Content{
+				ContentEntries: []configutil.ContentEntry{
 					{
 						Route: "/",
 						Name:  "index.html",
-						Bytes: maybeRead(s.FS, "index.html"),
+						Bytes: maybeRead(c.FS, "index.html"),
 					},
 					{
 						Route: "/404.html",
 						Name:  "404.html",
-						Bytes: maybeRead(s.FS, "404.html"),
+						Bytes: maybeRead(c.FS, "404.html"),
 					},
 					{
 						Route: "/base.css",
 						Name:  "base.css",
-						Bytes: maybeRead(s.FS, "base.css"),
+						Bytes: maybeRead(c.FS, "base.css"),
 					},
 				},
 			},

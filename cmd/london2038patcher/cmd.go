@@ -1,13 +1,34 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patchutil"
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/regutil"
 	"github.com/ricochhet/london2038patcher/pkg/timeutil"
 )
+
+// check handles checks for commands.
+func check(canBeUnsupported bool, v int) {
+	if canBeUnsupported {
+		maybeUnsupported()
+	}
+
+	if flag.NArg() < v {
+		usage()
+	}
+}
+
+// maybeUnsupported exits with code 1 if the current runtime is not Windows.
+func maybeUnsupported() {
+	if runtime.GOOS != "windows" {
+		fmt.Fprintf(os.Stderr, "This command is unsupported on non-Windows machines.\n")
+		os.Exit(1)
+	}
+}
 
 // downloadCmd command.
 func (p *PatcherCtx) downloadCmd() error {
@@ -52,9 +73,9 @@ func encodeCmd(a ...string) error {
 }
 
 // unpackCmd command.
-func unpackCmd(d patchutil.Options, a ...string) error {
+func unpackCmd(o patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
-		uErr := d.Unpack(a[0], a[1], a[2])
+		uErr := o.Unpack(a[0], a[1], a[2])
 		if uErr != nil {
 			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
 		}
@@ -66,9 +87,9 @@ func unpackCmd(d patchutil.Options, a ...string) error {
 }
 
 // packCmd command.
-func packCmd(d patchutil.Options, a ...string) error {
+func packCmd(o patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
-		pErr := d.Pack(a[0], a[1], a[2])
+		pErr := o.Pack(a[0], a[1], a[2])
 		if pErr != nil {
 			fmt.Fprintf(os.Stderr, "Error packing patch: %v\n", pErr)
 		}
@@ -80,9 +101,9 @@ func packCmd(d patchutil.Options, a ...string) error {
 }
 
 // packWithIdxCmd command.
-func packWithIdxCmd(d patchutil.Options, a ...string) error {
+func packWithIdxCmd(o patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
-		pErr := d.PackWithIndex(a[0], a[1], a[2])
+		pErr := o.PackWithIndex(a[0], a[1], a[2])
 		if pErr != nil {
 			fmt.Fprintf(os.Stderr, "Error packing patch: %v\n", pErr)
 		}
@@ -94,9 +115,9 @@ func packWithIdxCmd(d patchutil.Options, a ...string) error {
 }
 
 // unpackFromFileCmd command.
-func unpackFromFileCmd(d patchutil.Options, a ...string) error {
+func unpackFromFileCmd(o patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
-		uErr := d.UnpackFromFile(a[0], a[1])
+		uErr := o.UnpackFromFile(a[0], a[1])
 		if uErr != nil {
 			fmt.Fprintf(os.Stderr, "Error unpacking patch: %v\n", uErr)
 		}

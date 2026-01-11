@@ -33,26 +33,40 @@ func main() {
 		return
 	}
 
-	_, err := commands()
+	cmd, err := commands()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
 	}
+
+	if cmd {
+		return
+	}
+
+	s := server.NewServer(Flag.ConfigFile, Embed())
+	_ = serverCmd(s)
 }
 
 // commands handles the specified command flags.
 func commands() (bool, error) {
-	var cmd string
+	var (
+		cmd  string
+		args []string
+	)
 
 	if flag.NArg() != 0 {
 		cmd = strings.ToLower(flag.Args()[0])
 	}
 
+	if flag.NArg() > 1 {
+		args = flag.Args()[1:]
+	}
+
 	switch cmd {
 	case "help", "h":
 		usage()
-	default:
-		d := server.NewServer(cmd, Embed())
-		return true, serverCmd(d)
+	case "dump", "d":
+		check(1)
+		return true, dumpCmd(args...)
 	}
 
 	return false, nil
