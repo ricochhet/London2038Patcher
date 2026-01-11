@@ -65,7 +65,11 @@ func (p *Patcher) Download() error {
 
 // downloadChecksums downloads the checksum file and unmarshals it into a Files struct.
 func (p *Patcher) downloadChecksums() (*Files, error) {
-	if err := p.HTTPClient.Download(context.Background(), p.ChecksumFile, p.ChecksumURL); err != nil {
+	if err := p.HTTPClient.Download(
+		context.Background(),
+		p.ChecksumFile,
+		p.ChecksumURL,
+	); err != nil {
 		return &Files{}, errutil.WithFrame(err)
 	}
 

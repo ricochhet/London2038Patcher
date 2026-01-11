@@ -67,7 +67,14 @@ func (o *Options) Pack(index, path, output string) error {
 
 // Pack packs the path with the given index.
 func (o *Options) PackWithIndex(path, index, patch string) error {
-	if err := o.Registry.PackWithIndex(path, index, patch, o.Filter, o.Archs, o.IdxOptions); err != nil {
+	if err := o.Registry.PackWithIndex(
+		path,
+		index,
+		patch,
+		o.Filter,
+		o.Archs,
+		o.IdxOptions,
+	); err != nil {
 		return errutil.WithFrame(err)
 	}
 
