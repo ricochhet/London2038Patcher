@@ -33,26 +33,26 @@ func NewServer(configFile string, fs *embedutil.EmbeddedFileSystem) *Server {
 
 // StartServer starts an HTTP server with the specified server configuration.
 func (s *Server) StartServer() error {
-	ctx := serverutil.NewServerCtx()
-
-	r := chi.NewRouter()
-	r.Use(middleware.Recoverer)
-	r.Use(serverutil.WithLogging)
-
-	r.NotFound(s.NotFoundHandler)
-
-	ctx.Set(&serverutil.Server{
-		Router: r,
-		TLS:    *serverutil.NewTLS(),
-	})
-
 	config, err := s.maybeReadConfig(s.ConfigFile)
 	if err != nil {
 		return err
 	}
 
-	for _, server := range config.Servers {
-		if err := startServer(ctx, &server); err != nil {
+	for _, cfg := range config.Servers {
+		ctx := serverutil.NewServerCtx()
+
+		r := chi.NewRouter()
+		r.Use(middleware.Recoverer)
+		r.Use(serverutil.WithLogging)
+
+		r.NotFound(s.NotFoundHandler)
+
+		ctx.Set(&serverutil.Server{
+			Router: r,
+			TLS:    *serverutil.NewTLS(),
+		})
+
+		if err := startServer(ctx, &cfg); err != nil {
 			return err
 		}
 	}
