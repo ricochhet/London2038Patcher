@@ -66,11 +66,27 @@
             "problemMatcher": []
         },
         {
-            "label": "Build all (Windows)",
+            "label": "Build patcher (Windows)",
             "type": "shell",
             "command": "mingw32-make",
             "args": [
-                "all-windows",
+                "patcher-windows",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build fileserver (Windows)",
+            "type": "shell",
+            "command": "mingw32-make",
+            "args": [
+                "fileserver-windows",
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
