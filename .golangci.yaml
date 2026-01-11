@@ -109,6 +109,8 @@ linters:
             - $gostd
             - golang.org/x/sys/windows
             - golang.org/x/sys/windows/registry
+            - github.com/go-chi/chi/v5
+            - github.com/go-chi/chi/v5/middleware
             - github.com/ricochhet/london2038patcher
     funlen:
       lines: 100

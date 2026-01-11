@@ -1,57 +1,52 @@
-package main
+package server
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/serverutil"
+	"github.com/ricochhet/london2038patcher/pkg/embedutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
 	"github.com/ricochhet/london2038patcher/pkg/jsonutil"
 )
 
 type Server struct {
 	ConfigFile string
+	FS         *embedutil.EmbeddedFileSystem
 }
 
-// newDefaultConfig creates a default Config with the embedded index bytes.
-func newDefaultConfig() *configutil.Config {
-	e := Embed()
-	html, _ := e.Read("index.html")
-	css, _ := e.Read("base.css")
-
-	return &configutil.Config{
-		Servers: []configutil.Server{
-			{
-				Port: 8080,
-				Content: []configutil.Content{
-					{
-						Route: "/",
-						Name:  "index.html",
-						Bytes: html,
-					},
-					{
-						Route: "/base.css",
-						Name:  "base.css",
-						Bytes: css,
-					},
-				},
-			},
-		},
+// NewServer returns a new Server type with assets preloaded.
+func NewServer(configFile string, fs *embedutil.EmbeddedFileSystem) *Server {
+	d := &Server{}
+	if configFile != "" {
+		d.ConfigFile = configFile
 	}
+
+	d.FS = fs
+
+	return d
 }
 
 // StartServer starts an HTTP server with the specified server configuration.
 func (s *Server) StartServer() error {
 	ctx := serverutil.NewServerCtx()
+
+	r := chi.NewRouter()
+	r.Use(middleware.Recoverer)
+	r.Use(serverutil.WithLogging)
+
+	r.NotFound(s.NotFoundHandler)
+
 	ctx.Set(&serverutil.Server{
-		ServeMux: http.NewServeMux(),
-		TLS:      *serverutil.NewTLS(),
+		Router: r,
+		TLS:    *serverutil.NewTLS(),
 	})
 
-	config, err := maybeReadConfig(s.ConfigFile)
+	config, err := s.maybeReadConfig(s.ConfigFile)
 	if err != nil {
 		return err
 	}
@@ -66,7 +61,7 @@ func (s *Server) StartServer() error {
 }
 
 // maybeReadConfig reads the file path if it exists, otherwise returning a default config.
-func maybeReadConfig(path string) (*configutil.Config, error) {
+func (s *Server) maybeReadConfig(path string) (*configutil.Config, error) {
 	var (
 		config *configutil.Config
 		err    error
@@ -85,7 +80,7 @@ func maybeReadConfig(path string) (*configutil.Config, error) {
 		return nil, fmt.Errorf("path specified but does not exist: %s", path)
 	default:
 		fmt.Fprintf(os.Stdout, "Starting with default server config\n")
-		return newDefaultConfig(), nil
+		return s.newDefaultConfig(), nil
 	}
 }
 
@@ -99,16 +94,13 @@ func startServer(s *serverutil.ServerCtx, c *configutil.Server) error {
 
 		fmt.Fprintf(os.Stdout, "Port %d: %s -> %s\n", c.Port, f.Route, abs)
 
-		s.HandleFunc(f.Route, serverutil.WithLogging(serverutil.ServeFileHandler(abs)))
+		s.Handle(f.Route, serverutil.ServeFileHandler(abs))
 	}
 
 	for _, f := range c.Content {
 		fmt.Fprintf(os.Stdout, "Port %d: %s -> %s (%d)\n", c.Port, f.Route, f.Name, len(f.Bytes))
 
-		s.HandleFunc(
-			f.Route,
-			serverutil.WithLogging(serverutil.ServeContentHandler(f.Name, f.Bytes)),
-		)
+		s.Handle(f.Route, serverutil.ServeContentHandler(f.Name, f.Bytes))
 	}
 
 	addr := fmt.Sprintf(":%d", c.Port)

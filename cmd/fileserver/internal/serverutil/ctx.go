@@ -3,10 +3,12 @@ package serverutil
 import (
 	"net/http"
 	"sync"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type Server struct {
-	*http.ServeMux
+	Router chi.Router
 
 	TLS TLS
 }
@@ -52,9 +54,9 @@ func (p *ServerCtx) CopyFrom(target *ServerCtx) {
 	p.Set(target.Get())
 }
 
-func (p *ServerCtx) HandleFunc(pattern string, handler http.HandlerFunc) {
+func (p *ServerCtx) Handle(pattern string, handler http.Handler) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.server.HandleFunc(pattern, handler)
+	p.server.Router.Handle(pattern, handler)
 }

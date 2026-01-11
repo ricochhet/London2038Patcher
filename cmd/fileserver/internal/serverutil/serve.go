@@ -1,19 +1,17 @@
 package serverutil
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 )
 
 // listenAndServe creates an HTTP server at the specified address.
 func (s *ServerCtx) ListenAndServe(addr string) {
 	server := &http.Server{
 		Addr:    addr,
-		Handler: s.server,
+		Handler: s.server.Router,
 	}
 
 	fmt.Fprintf(os.Stdout, "Server listening on %s\n", addr)
@@ -33,28 +31,6 @@ func (s *ServerCtx) ListenAndServe(addr string) {
 
 	if err != nil && err != http.ErrServerClosed {
 		fmt.Fprintf(os.Stdout, "Server %s failed: %v\n", strings.TrimPrefix(addr, ":"), err)
-	}
-}
-
-// WithLogging is a middleware that logs the method and URL path for the handler.
-func WithLogging(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(os.Stdout, "%s %s\n", r.Method, r.URL.Path)
-		next(w, r)
-	}
-}
-
-// ServeFileHandler creates a HandlerFunc for http.ServeFile.
-func ServeFileHandler(name string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, name)
-	}
-}
-
-// ServeContentHandler creates a HandlerFunc for http.ServeContent.
-func ServeContentHandler(name string, b []byte) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		http.ServeContent(w, r, name, time.Now(), bytes.NewReader(b))
 	}
 }
 

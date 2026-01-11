@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/server"
 )
 
 var (
@@ -49,22 +51,9 @@ func commands() (bool, error) {
 	case "help", "h":
 		usage()
 	default:
-		d := &Server{}
-		if cmd != "" {
-			d.ConfigFile = cmd
-		}
-
-		return true, d.server()
+		d := server.NewServer(cmd, Embed())
+		return true, serverCmd(d)
 	}
 
 	return false, nil
-}
-
-// server command.
-func (d *Server) server() error {
-	if err := d.StartServer(); err != nil {
-		return err
-	}
-
-	select {} // block
 }
