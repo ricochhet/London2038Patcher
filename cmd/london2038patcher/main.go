@@ -2,52 +2,38 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patchutil"
+	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/patcher"
 	"github.com/ricochhet/london2038patcher/pkg/cmdutil"
 	"github.com/ricochhet/london2038patcher/pkg/dlutil"
+	"github.com/ricochhet/london2038patcher/pkg/logutil"
 	"github.com/ricochhet/london2038patcher/pkg/winutil"
 )
 
-var (
-	buildDate string
-	gitHash   string
-	buildOn   string
-)
-
-func version() string {
-	return fmt.Sprintf(
-		"London2038Patcher\n\tBuild Date: %s\n\tGit Hash: %s\n\tBuilt On: %s\n",
-		buildDate, gitHash, buildOn,
-	)
-}
-
-func usage() {
-	flag.Usage()
-	os.Exit(0)
-}
-
 func main() {
+	logutil.LogTime.Store(true)
+	logutil.MaxProcNameLength.Store(0)
+	logutil.Set(logutil.NewLogger("patcher", 0))
+
 	if Flag.Version {
-		fmt.Fprint(os.Stdout, version())
+		logutil.Info(logutil.Get(), version())
 		return
 	}
 
 	cmd, err := commands()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
+		logutil.Errorf(logutil.Get(), "Error running command: %v\n", err)
 	}
 
 	if cmd {
 		return
 	}
 
-	patcher := NewPatcherCtx()
-	patcher.Set(&Patcher{
+	p := patcher.NewContext()
+	p.Set(&patcher.Patcher{
 		HTTPClient:    *dlutil.NewHTTPClient(time.Duration(Flag.Timeout)),
 		ChecksumURL:   Flag.ChecksumURL,
 		PatchURL:      Flag.PatchURL,
@@ -55,10 +41,10 @@ func main() {
 		HellgateCUKey: "",
 		HellgateKey:   "",
 		UsePatchDir:   Flag.PatchDir,
-		patchDir:      "",
+		PatchDir:      "",
 	})
 
-	_ = patcher.downloadCmd()
+	_ = downloadCmd(p)
 }
 
 // commands handles the specified command flags.

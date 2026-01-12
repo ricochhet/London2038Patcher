@@ -26,7 +26,7 @@ func NewLocaleFilter(lr *LocaleRegistry, codes []string) (*LocaleFilter, error) 
 		loc, ok := lr.m[code]
 		if !ok || loc == 0 {
 			return nil, errutil.WithFramef(
-				"Locale: %q does not exist in locales",
+				"locale %q does not exist in registry",
 				code,
 			)
 		}

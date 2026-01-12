@@ -63,7 +63,7 @@ func (e *EmbeddedFileSystem) MaybeReadEmbedded(name string) ([]byte, error) {
 func (e *EmbeddedFileSystem) Read(name string) ([]byte, error) {
 	b, err := e.FS.ReadFile(filepath.ToSlash(filepath.Join(e.Initial, name)))
 	if err != nil {
-		return nil, errutil.New("FS.ReadFile", err)
+		return nil, errutil.WithFrame(err)
 	}
 
 	return b, nil

@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
 // Unpack unpacks the specified path with the provided index.
@@ -21,12 +22,12 @@ func (idx *Index) Unpack(
 ) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("os.Open", err)
 	}
 	defer f.Close()
 
 	if err := os.MkdirAll(output, 0o755); err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("os.MkdirAll", err)
 	}
 
 	for _, entry := range idx.Files {
@@ -42,34 +43,34 @@ func (idx *Index) Unpack(
 		}
 
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("os.MkdirAll", err)
 		}
 
-		fmt.Fprintf(os.Stdout, "Extracting: %s (%d bytes)\n", target, entry.FileSize)
+		logutil.Infof(logutil.Get(), "Extracting: %s (%d bytes)\n", target, entry.FileSize)
 
 		if _, err := f.Seek(entry.DatOffset, io.SeekStart); err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("f.Seek", err)
 		}
 
 		buf := make([]byte, entry.FileSize)
 		if _, err := io.ReadFull(f, buf); err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("io.ReadFull", err)
 		}
 
 		outFile, err := os.Create(target)
 		if err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("os.Create", err)
 		}
 
 		bw := bufio.NewWriterSize(outFile, 4*1024*1024)
 		if _, err := bw.Write(buf); err != nil {
 			outFile.Close()
-			return errutil.WithFrame(err)
+			return errutil.New("bw.Write", err)
 		}
 
 		if err := bw.Flush(); err != nil {
 			outFile.Close()
-			return errutil.WithFrame(err)
+			return errutil.New("bw.Flush", err)
 		}
 
 		if opts.Debug {
@@ -91,7 +92,7 @@ func (idx *Index) Pack(
 ) error {
 	f, err := os.Create(output)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("os.Create", err)
 	}
 	defer f.Close()
 
@@ -113,7 +114,7 @@ func (idx *Index) Pack(
 		case err != nil:
 			buf = make([]byte, entry.FileSize)
 
-			fmt.Fprintf(os.Stdout, "Missing file, zeroing: %s\n", source)
+			logutil.Infof(logutil.Get(), "Missing file, zeroing: %s\n", source)
 		case int64(len(buf)) < entry.FileSize:
 			padded := make([]byte, entry.FileSize)
 			copy(padded, buf)
@@ -123,18 +124,18 @@ func (idx *Index) Pack(
 		}
 
 		if _, err := f.Seek(entry.DatOffset, io.SeekStart); err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("f.Seek", err)
 		}
 
 		if _, err := bw.Write(buf); err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("bw.Write", err)
 		}
 
 		if opts.Debug {
 			_ = entry.validateCRC32(buf)
 		}
 
-		fmt.Fprintf(os.Stdout, "Packing: %s (%d bytes)\n", source, len(buf))
+		logutil.Infof(logutil.Get(), "Packing: %s (%d bytes)\n", source, len(buf))
 	}
 
 	return nil
@@ -171,7 +172,7 @@ func (lm *LocaleRegistry) packWithIndex(
 
 	f, err := os.Create(patch)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("os.Create", err)
 	}
 	defer f.Close()
 
@@ -196,14 +197,14 @@ func (lm *LocaleRegistry) packWithIndex(
 		}
 
 		if _, err := bw.Write(buf); err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("bw.Write", err)
 		}
 
 		if opts.CRC32 {
 			entry.Hash = crc32.ChecksumIEEE(buf)
 		}
 
-		fmt.Fprintf(os.Stdout, "Packing: %s (%d bytes)\n", source, len(buf))
+		logutil.Infof(logutil.Get(), "Packing: %s (%d bytes)\n", source, len(buf))
 	}
 
 	data, err := Encode(idx)
@@ -228,7 +229,7 @@ func (lm *LocaleRegistry) readIntoIndex(
 
 		rel, err := filepath.Rel(path, target)
 		if err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("filepath.Rel", err)
 		}
 
 		file := filepath.ToSlash(rel)
@@ -240,7 +241,7 @@ func (lm *LocaleRegistry) readIntoIndex(
 
 		buf, err := os.ReadFile(target)
 		if err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("os.ReadFile", err)
 		}
 
 		entry := Entry{
@@ -266,7 +267,13 @@ func (lm *LocaleRegistry) readIntoIndex(
 func (e *Entry) validateCRC32(buf []byte) bool {
 	crc := crc32.ChecksumIEEE(buf)
 	if e.Hash == crc {
-		fmt.Fprintf(os.Stdout, "hashes match for file %s (%d bytes)\n", e.FileName, e.FileSize)
+		logutil.Infof(
+			logutil.Get(),
+			"hashes match for file %s (%d bytes)\n",
+			e.FileName,
+			e.FileSize,
+		)
+
 		return true
 	}
 

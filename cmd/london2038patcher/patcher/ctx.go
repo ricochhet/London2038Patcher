@@ -1,19 +1,19 @@
-package main
+package patcher
 
 import "sync"
 
-type PatcherCtx struct {
+type Context struct {
 	mu      sync.Mutex
 	patcher *Patcher
 }
 
-// NewPatcherCtx creates an empty PatcherCtx.
-func NewPatcherCtx() *PatcherCtx {
-	return &PatcherCtx{}
+// NewContext creates an empty PatcherCtx.
+func NewContext() *Context {
+	return &Context{}
 }
 
 // Get returns the patcher.
-func (p *PatcherCtx) Get() *Patcher {
+func (p *Context) Get() *Patcher {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -21,7 +21,7 @@ func (p *PatcherCtx) Get() *Patcher {
 }
 
 // Set sets the patcher.
-func (p *PatcherCtx) Set(patcher *Patcher) {
+func (p *Context) Set(patcher *Patcher) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -29,6 +29,6 @@ func (p *PatcherCtx) Set(patcher *Patcher) {
 }
 
 // CopyFrom sets all patcher to the target.
-func (p *PatcherCtx) CopyFrom(target *PatcherCtx) {
+func (p *Context) CopyFrom(target *Context) {
 	p.Set(target.Get())
 }

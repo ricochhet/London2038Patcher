@@ -1,4 +1,4 @@
-package main
+package patcher
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/dlutil"
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
+	"github.com/ricochhet/london2038patcher/pkg/logutil"
 	"github.com/ricochhet/london2038patcher/pkg/xmlutil"
 )
 
@@ -26,7 +27,7 @@ type Patcher struct {
 	HellgateKey   string
 
 	UsePatchDir bool
-	patchDir    string
+	PatchDir    string
 }
 
 type FileEntry struct {
@@ -44,20 +45,20 @@ type Files struct {
 func (p *Patcher) Download() error {
 	files, err := p.downloadChecksums()
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("p.downloadChecksums", err)
 	}
 
 	if p.UsePatchDir {
 		path, err := patchDir(files)
 		if err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("patchDir", err)
 		}
 
-		p.patchDir = path
+		p.PatchDir = path
 	}
 
 	if err := p.downloadFiles(files); err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("p.downloadFiles", err)
 	}
 
 	return nil
@@ -70,12 +71,12 @@ func (p *Patcher) downloadChecksums() (*Files, error) {
 		p.ChecksumFile,
 		p.ChecksumURL,
 	); err != nil {
-		return &Files{}, errutil.WithFrame(err)
+		return &Files{}, errutil.New("p.HTTPClient.Download", err)
 	}
 
 	files, err := xmlutil.ReadAndUnmarshal[Files](p.ChecksumFile)
 	if err != nil {
-		return &Files{}, errutil.WithFrame(err)
+		return &Files{}, errutil.New("xmlutil.ReadAndUnmarshal", err)
 	}
 
 	return files, nil
@@ -89,25 +90,25 @@ func (p *Patcher) downloadFiles(files *Files) error {
 		}
 
 		path := entry.Name
-		if Flag.PatchDir {
-			path = filepath.Join(p.patchDir, entry.Name)
+		if p.UsePatchDir {
+			path = filepath.Join(p.PatchDir, entry.Name)
 		}
 
 		url := p.PatchURL + strings.ReplaceAll(entry.Name, "\\", "/")
 
 		if err := fsutil.Ensure(path); err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("fsutil.Ensure", err)
 		}
 
 		if fsutil.Validate(path, entry.Hash, md5.New()) {
-			fmt.Fprintf(os.Stdout, "Skipping: %s (already up-to-date)\n", path)
+			logutil.Infof(logutil.Get(), "Skipping: %s (already up-to-date)\n", path)
 			continue
 		}
 
-		fmt.Fprintf(os.Stdout, "Downloading: %s to %s\n", url, path)
+		logutil.Infof(logutil.Get(), "Downloading: %s to %s\n", url, path)
 
 		if err := p.HTTPClient.Download(context.Background(), path, url); err != nil {
-			return errutil.WithFrame(err)
+			return errutil.New("p.HTTPClient.Download", err)
 		}
 	}
 

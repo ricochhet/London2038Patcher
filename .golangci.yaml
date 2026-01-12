@@ -111,6 +111,9 @@ linters:
             - golang.org/x/sys/windows/registry
             - github.com/go-chi/chi/v5
             - github.com/go-chi/chi/v5/middleware
+            - github.com/go-chi/httprate
+            - github.com/go-chi/cors
+            - github.com/mattn/go-colorable
             - github.com/ricochhet/london2038patcher
     funlen:
       lines: 100

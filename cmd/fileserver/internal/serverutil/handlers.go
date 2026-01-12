@@ -2,18 +2,17 @@ package serverutil
 
 import (
 	"bytes"
-	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
+	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
 // WithLogging is a middleware that logs the method and URL path for the handler.
 func WithLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(os.Stdout, "%s %s\n", r.Method, r.URL.Path)
+		logutil.Infof(logutil.Get(), "%s %s\n", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }

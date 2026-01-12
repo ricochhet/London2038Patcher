@@ -27,12 +27,12 @@ func NewHTTPClient(timeout time.Duration) *HTTPClient {
 func (c *HTTPClient) Download(ctx context.Context, path, url string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("http.NewRequestWithContext", err)
 	}
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("c.Do", err)
 	}
 	defer resp.Body.Close()
 
@@ -44,16 +44,16 @@ func (c *HTTPClient) Download(ctx context.Context, path, url string) error {
 
 	out, err := os.Create(tmp)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("os.Create", err)
 	}
 
 	if _, err := io.Copy(out, resp.Body); err != nil {
 		out.Close()
-		return errutil.WithFrame(err)
+		return errutil.New("io.Copy", err)
 	}
 
 	if err := out.Close(); err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("out.Close", err)
 	}
 
 	return os.Rename(tmp, path)

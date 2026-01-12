@@ -5,27 +5,18 @@ import (
 	"sync"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
 )
 
 type HTTPServer struct {
 	Router chi.Router
 
-	TLS TLS
-}
-
-type TLS struct {
-	Cert string
-	Key  string
+	TLS *configutil.TLS
 }
 
 type HTTPServerCtx struct {
 	mu         sync.Mutex
 	httpServer *HTTPServer
-}
-
-// NewTLS creates an empty TLS.
-func NewTLS() *TLS {
-	return &TLS{}
 }
 
 // NewHTTPServerCtx creates an empty PatcherCtx.

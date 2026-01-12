@@ -2,47 +2,37 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"os"
 	"strings"
 
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/server"
+	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
-
-var (
-	buildDate string
-	gitHash   string
-	buildOn   string
-)
-
-func version() string {
-	return fmt.Sprintf(
-		"fileserver\n\tBuild Date: %s\n\tGit Hash: %s\n\tBuilt On: %s\n",
-		buildDate, gitHash, buildOn,
-	)
-}
-
-func usage() {
-	flag.Usage()
-	os.Exit(0)
-}
 
 func main() {
+	logutil.LogTime.Store(true)
+	logutil.MaxProcNameLength.Store(0)
+	logutil.Set(logutil.NewLogger("fileserver", 0))
+
 	if Flag.Version {
-		fmt.Fprint(os.Stdout, version())
+		logutil.Info(logutil.Get(), version())
 		return
 	}
 
 	cmd, err := commands()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
+		logutil.Errorf(logutil.Get(), "Error running command: %v\n", err)
 	}
 
 	if cmd {
 		return
 	}
 
-	s := server.NewServer(Flag.ConfigFile, Embed())
+	s := server.NewServer(Flag.ConfigFile, &configutil.TLS{
+		Enabled:  true,
+		CertFile: Flag.CertFile,
+		KeyFile:  Flag.KeyFile,
+	}, Embed())
 	_ = serverCmd(s)
 }
 

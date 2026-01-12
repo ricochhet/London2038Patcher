@@ -1,18 +1,18 @@
 package server
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
+	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
 // maybeRead reads the specified name from the embedded filesystem. If it cannot be read, the program will exit.
 func maybeRead(fs *embedutil.EmbeddedFileSystem, name string) []byte {
 	b, err := fs.Read(name)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading from embedded filesystem: %v\n", err)
+		logutil.Errorf(logutil.Get(), "Error reading from embedded filesystem: %v\n", err)
 		os.Exit(1)
 	}
 

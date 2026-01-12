@@ -18,25 +18,25 @@ type Patch struct {
 // Unpack unpacks the patch file with the given index.
 func (o *Options) Unpack(index, patch, output string) error {
 	if !fsutil.Exists(index) {
-		return errutil.WithFramef("path does not exist: %s", index)
+		return errutil.Newf("fsutil.Exists(index)", "path does not exist: %s", index)
 	}
 
 	if !fsutil.Exists(patch) {
-		return errutil.WithFramef("path does not exist: %s", patch)
+		return errutil.Newf("fsutil.Exists(patch)", "path does not exist: %s", patch)
 	}
 
 	f, err := fsutil.Read(index)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("fsutil.Read", err)
 	}
 
 	idx, err := Decode(f)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("Decode", err)
 	}
 
 	if err := idx.Unpack(patch, output, o.Filter, o.Archs, o.IdxOptions); err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("idx.Unpack", err)
 	}
 
 	return nil
@@ -50,16 +50,16 @@ func (o *Options) Pack(index, path, output string) error {
 
 	f, err := fsutil.Read(index)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("fsutil.Read", err)
 	}
 
 	idx, err := Decode(f)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("Decode", err)
 	}
 
 	if err := idx.Pack(path, output, o.Filter, o.Archs, o.IdxOptions); err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("idx.Pack", err)
 	}
 
 	return nil

@@ -12,12 +12,12 @@ import (
 func ReadAndUnmarshal[T any](path string) (*T, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, errutil.WithFrame(err)
+		return nil, errutil.New("os.ReadFile", err)
 	}
 
 	var t T
 	if err := xml.Unmarshal(data, &t); err != nil {
-		return nil, errutil.WithFrame(err)
+		return nil, errutil.New("xml.Unmarshal", err)
 	}
 
 	return &t, nil

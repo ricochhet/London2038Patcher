@@ -60,7 +60,7 @@ func DecodeFile(path, output string) ([]byte, error) {
 
 	f, err := fsutil.Read(path)
 	if err != nil {
-		return nil, errutil.WithFrame(err)
+		return nil, errutil.New("fsutil.Read", err)
 	}
 
 	idx, err := Decode(f)
@@ -70,22 +70,22 @@ func DecodeFile(path, output string) ([]byte, error) {
 
 	outFile, err := os.Create(output)
 	if err != nil {
-		return nil, errutil.WithFrame(err)
+		return nil, errutil.New("os.Create", err)
 	}
 	defer outFile.Close()
 
 	data, err := json.MarshalIndent(idx, "", "  ")
 	if err != nil {
-		return nil, errutil.WithFrame(err)
+		return nil, errutil.New("json.MarshalIndent", err)
 	}
 
 	bw := bufio.NewWriterSize(outFile, 4*1024*1024)
 	if _, err := bw.Write(data); err != nil {
-		return nil, errutil.WithFrame(err)
+		return nil, errutil.New("bw.Write", err)
 	}
 
 	if err := bw.Flush(); err != nil {
-		return nil, errutil.WithFrame(err)
+		return nil, errutil.New("bw.Flush", err)
 	}
 
 	return data, nil
@@ -99,12 +99,12 @@ func EncodeFile(path, output string) error {
 
 	f, err := fsutil.Read(path)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("fsutil.Read", err)
 	}
 
 	var idx Index
 	if err := json.Unmarshal(f, &idx); err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("json.Unmarshal", err)
 	}
 
 	buf, err := Encode(&idx)
@@ -114,13 +114,13 @@ func EncodeFile(path, output string) error {
 
 	outFile, err := os.Create(output)
 	if err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("os.Create", err)
 	}
 	defer outFile.Close()
 
 	bw := bufio.NewWriterSize(outFile, 4*1024*1024)
 	if _, err := bw.Write(buf); err != nil {
-		return errutil.WithFrame(err)
+		return errutil.New("bw.Write", err)
 	}
 
 	return bw.Flush()

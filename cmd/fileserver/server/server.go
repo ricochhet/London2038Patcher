@@ -4,28 +4,34 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/serverutil"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
 	"github.com/ricochhet/london2038patcher/pkg/jsonutil"
+	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
 type Context struct {
 	ConfigFile string
+	TLS        *configutil.TLS
 	FS         *embedutil.EmbeddedFileSystem
 }
 
 // NewServer returns a new Server type with assets preloaded.
-func NewServer(configFile string, fs *embedutil.EmbeddedFileSystem) *Context {
+func NewServer(configFile string, tls *configutil.TLS, fs *embedutil.EmbeddedFileSystem) *Context {
 	s := &Context{}
 	if configFile != "" {
 		s.ConfigFile = configFile
 	}
 
+	s.TLS = tls
 	s.FS = fs
 
 	return s
@@ -38,18 +44,30 @@ func (c *Context) StartServer() error {
 		return err
 	}
 
+	c.maybeTLS(config)
+
 	for _, cfg := range config.Servers {
 		ctx := serverutil.NewHTTPServerCtx()
 
 		r := chi.NewRouter()
 		r.Use(middleware.Recoverer)
 		r.Use(serverutil.WithLogging)
+		r.Use(httprate.LimitByIP(50, time.Minute))
+
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins:   []string{"https://*", "http://*"},
+			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+			ExposedHeaders:   []string{"Link"},
+			AllowCredentials: false,
+			MaxAge:           300,
+		}))
 
 		r.NotFound(c.NotFoundHandler)
 
 		ctx.Set(&serverutil.HTTPServer{
 			Router: r,
-			TLS:    *serverutil.NewTLS(),
+			TLS:    c.TLS,
 		})
 
 		if err := startServer(ctx, &cfg); err != nil {
@@ -58,6 +76,22 @@ func (c *Context) StartServer() error {
 	}
 
 	return nil
+}
+
+// maybeTLS sets TLS based on whether flags are based, or if relevant config options are used.
+func (c *Context) maybeTLS(cfg *configutil.Config) {
+	if c.TLS.CertFile == "" || c.TLS.KeyFile == "" { // default flags
+		c.TLS.Enabled = false
+	}
+
+	if fsutil.Exists(c.TLS.CertFile) && fsutil.Exists(c.TLS.KeyFile) { // flags
+		c.TLS.Enabled = true
+		return
+	}
+
+	if fsutil.Exists(cfg.TLS.CertFile) && fsutil.Exists(cfg.TLS.KeyFile) { // config
+		c.TLS = &cfg.TLS
+	}
 }
 
 // maybeReadConfig reads the file path if it exists, otherwise returning a default config.
@@ -72,14 +106,14 @@ func (c *Context) maybeReadConfig(path string) (*configutil.Config, error) {
 	case exists:
 		config, err = jsonutil.ReadAndUnmarshal[configutil.Config](path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading server config: %v\n", err)
+			logutil.Errorf(logutil.Get(), "Error reading server config: %v\n", err)
 		}
 
 		return config, err
 	case !exists && path != "":
 		return nil, fmt.Errorf("path specified but does not exist: %s", path)
 	default:
-		fmt.Fprintf(os.Stdout, "Starting with default server config\n")
+		logutil.Infof(logutil.Get(), "Starting with default server config\n")
 		return c.newDefaultConfig(), nil
 	}
 }
@@ -147,7 +181,7 @@ func matchPattern(
 
 		route := filepath.ToSlash(filepath.Join(f.Route, rel))
 
-		fmt.Fprintf(os.Stdout, "Port %d: %s -> %s\n", cfg.Port, route, abs)
+		logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, route, abs)
 		ctx.Handle(route, serverutil.ServeFileHandler(f.Info, abs))
 
 		return nil
@@ -165,7 +199,7 @@ func matchFile(
 		return fmt.Errorf("invalid path %s: %w", f.Path, err)
 	}
 
-	fmt.Fprintf(os.Stdout, "Port %d: %s -> %s\n", cfg.Port, f.Route, abs)
+	logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, f.Route, abs)
 	ctx.Handle(f.Route, serverutil.ServeFileHandler(f.Info, abs))
 
 	return nil
@@ -174,7 +208,14 @@ func matchFile(
 // serveContentHandler handles the ServeContentHandler for each content entry.
 func serveContentHandler(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) {
 	for _, f := range cfg.ContentEntries {
-		fmt.Fprintf(os.Stdout, "Port %d: %s -> %s (%d)\n", cfg.Port, f.Route, f.Name, len(f.Bytes))
+		logutil.Infof(
+			logutil.Get(),
+			"Port %d: %s -> %s (%d)\n",
+			cfg.Port,
+			f.Route,
+			f.Name,
+			len(f.Bytes),
+		)
 
 		ctx.Handle(f.Route, serverutil.ServeContentHandler(f.Info, f.Name, f.Bytes))
 	}

@@ -1,7 +1,14 @@
 package configutil
 
 type Config struct {
+	TLS     TLS      `json:"tls"`
 	Servers []Server `json:"servers"`
+}
+
+type TLS struct {
+	Enabled  bool   `json:"enabled"`
+	CertFile string `json:"certFile"`
+	KeyFile  string `json:"keyFile"`
 }
 
 type Server struct {
