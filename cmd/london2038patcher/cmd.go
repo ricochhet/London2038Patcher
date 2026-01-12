@@ -1,35 +1,12 @@
 package main
 
 import (
-	"flag"
-	"os"
-	"runtime"
-
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patchutil"
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/regutil"
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/patcher"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 	"github.com/ricochhet/london2038patcher/pkg/timeutil"
 )
-
-// check handles checks for commands.
-func check(canBeUnsupported bool, v int) {
-	if canBeUnsupported {
-		maybeUnsupported()
-	}
-
-	if flag.NArg() < v {
-		usage()
-	}
-}
-
-// maybeUnsupported exits with code 1 if the current runtime is not Windows.
-func maybeUnsupported() {
-	if runtime.GOOS != "windows" {
-		logutil.Errorf(logutil.Get(), "This command is unsupported on non-Windows machines.\n")
-		os.Exit(1)
-	}
-}
 
 // downloadCmd command.
 func downloadCmd(p *patcher.Context) error {

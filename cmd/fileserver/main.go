@@ -2,22 +2,33 @@ package main
 
 import (
 	"flag"
+	"os"
 	"strings"
 
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/server"
+	"github.com/ricochhet/london2038patcher/pkg/cmdutil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
+	"github.com/ricochhet/london2038patcher/pkg/winutil"
 )
+
+var (
+	buildDate string
+	gitHash   string
+	buildOn   string
+)
+
+func version() {
+	logutil.Infof(logutil.Get(), "fileserver-%s\n", gitHash)
+	logutil.Infof(logutil.Get(), "Build date: %s\n", buildDate)
+	logutil.Infof(logutil.Get(), "Build on: %s\n", buildOn)
+	os.Exit(0)
+}
 
 func main() {
 	logutil.LogTime.Store(true)
 	logutil.MaxProcNameLength.Store(0)
 	logutil.Set(logutil.NewLogger("fileserver", 0))
-
-	if Flag.Version {
-		logutil.Info(logutil.Get(), version())
-		return
-	}
 
 	cmd, err := commands()
 	if err != nil {
@@ -28,35 +39,41 @@ func main() {
 		return
 	}
 
-	s := server.NewServer(Flag.ConfigFile, &configutil.TLS{
+	s := server.NewServer(flags.ConfigFile, &configutil.TLS{
 		Enabled:  true,
-		CertFile: Flag.CertFile,
-		KeyFile:  Flag.KeyFile,
+		CertFile: flags.CertFile,
+		KeyFile:  flags.KeyFile,
 	}, Embed())
 	_ = serverCmd(s)
 }
 
 // commands handles the specified command flags.
 func commands() (bool, error) {
-	var (
-		cmd  string
-		args []string
-	)
-
-	if flag.NArg() != 0 {
-		cmd = strings.ToLower(flag.Args()[0])
+	args := flag.Args()
+	if len(args) == 0 {
+		return false, nil
 	}
 
-	if flag.NArg() > 1 {
-		args = flag.Args()[1:]
-	}
+	cmd := strings.ToLower(args[0])
+	rest := args[1:]
 
 	switch cmd {
-	case "help", "h":
-		usage()
 	case "dump", "d":
-		check(1)
-		return true, dumpCmd(args...)
+		cmds.Check(1)
+		return true, dumpCmd(rest...)
+	case "list", "l":
+		cmds.Check(1)
+		return true, listCmd(rest...)
+	case "help", "h":
+		cmds.Usage()
+	case "version", "v":
+		version()
+	default:
+		cmds.Usage()
+	}
+
+	if winutil.IsAdmin() {
+		cmdutil.Pause()
 	}
 
 	return false, nil

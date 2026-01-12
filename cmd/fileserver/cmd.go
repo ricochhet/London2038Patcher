@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
-	"flag"
 	"path/filepath"
 
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/server"
@@ -12,20 +10,22 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
-// check handles checks for commands.
-func check(v int) {
-	if flag.NArg() < v {
-		usage()
-	}
-}
-
 // dumpCmd command.
 func dumpCmd(a ...string) error {
 	return Embed().Dump(a[0], "", func(f embedutil.File, b []byte) error {
-		return fsutil.Write(
-			filepath.Join("dump", f.Path+".base64"),
-			[]byte(base64.StdEncoding.EncodeToString(b)),
-		)
+		logutil.Infof(logutil.Get(), "Writing: %s (%d bytes)\n", f.Path, f.Info.Size())
+		return fsutil.Write(filepath.Join("dump", f.Path), b)
+	})
+}
+
+// listCmd command.
+func listCmd(a ...string) error {
+	return Embed().List(a[0], func(files []embedutil.File) error {
+		for _, f := range files {
+			logutil.Infof(logutil.Get(), "%s (%d bytes)\n", f.Path, f.Info.Size())
+		}
+
+		return nil
 	})
 }
 

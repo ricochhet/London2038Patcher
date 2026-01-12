@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"os"
 	"strings"
 	"time"
 
@@ -13,15 +14,23 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/winutil"
 )
 
+var (
+	buildDate string
+	gitHash   string
+	buildOn   string
+)
+
+func version() {
+	logutil.Infof(logutil.Get(), "patcher-%s\n", gitHash)
+	logutil.Infof(logutil.Get(), "Build date: %s\n", buildDate)
+	logutil.Infof(logutil.Get(), "Build on: %s\n", buildOn)
+	os.Exit(0)
+}
+
 func main() {
 	logutil.LogTime.Store(true)
 	logutil.MaxProcNameLength.Store(0)
 	logutil.Set(logutil.NewLogger("patcher", 0))
-
-	if Flag.Version {
-		logutil.Info(logutil.Get(), version())
-		return
-	}
 
 	cmd, err := commands()
 	if err != nil {
@@ -34,13 +43,13 @@ func main() {
 
 	p := patcher.NewContext()
 	p.Set(&patcher.Patcher{
-		HTTPClient:    *dlutil.NewHTTPClient(time.Duration(Flag.Timeout)),
-		ChecksumURL:   Flag.ChecksumURL,
-		PatchURL:      Flag.PatchURL,
-		ChecksumFile:  Flag.ChecksumFile,
+		HTTPClient:    *dlutil.NewHTTPClient(time.Duration(flags.Timeout)),
+		ChecksumURL:   flags.ChecksumURL,
+		PatchURL:      flags.PatchURL,
+		ChecksumFile:  flags.ChecksumFile,
 		HellgateCUKey: "",
 		HellgateKey:   "",
-		UsePatchDir:   Flag.PatchDir,
+		UsePatchDir:   flags.PatchDir,
 		PatchDir:      "",
 	})
 
@@ -49,16 +58,17 @@ func main() {
 
 // commands handles the specified command flags.
 func commands() (bool, error) {
-	if flag.NArg() == 0 {
+	args := flag.Args()
+	if len(args) == 0 {
 		return false, nil
 	}
 
-	cmd := strings.ToLower(flag.Args()[0])
-	args := flag.Args()[1:]
+	cmd := strings.ToLower(args[0])
+	rest := args[1:]
 
 	lr := patchutil.NewDefaultLocaleRegistry()
 
-	lf, err := patchutil.NewLocaleFilter(lr, toSlice(Flag.Locales, ","))
+	lf, err := patchutil.NewLocaleFilter(lr, toSlice(flags.Locales, ","))
 	if err != nil {
 		return true, err
 	}
@@ -67,35 +77,39 @@ func commands() (bool, error) {
 		Registry: lr,
 		Filter:   lf,
 		IdxOptions: &patchutil.IdxOptions{
-			CRC32: Flag.CRC32,
+			CRC32: flags.CRC32,
 		},
-		Archs: toSlice(Flag.Archs, ","),
+		Archs: toSlice(flags.Archs, ","),
 	}
 
 	switch cmd {
 	case "decodeidx":
-		check(false, 3)
-		return true, decodeCmd(args...)
+		cmds.Check(2)
+		return true, decodeCmd(rest...)
 	case "encodeidx":
-		check(false, 3)
-		return true, encodeCmd(args...)
+		cmds.Check(2)
+		return true, encodeCmd(rest...)
 	case "unpack":
-		check(false, 4)
-		return true, unpackCmd(o, args...)
+		cmds.Check(3)
+		return true, unpackCmd(o, rest...)
 	case "pack":
-		check(false, 4)
-		return true, packCmd(o, args...)
+		cmds.Check(3)
+		return true, packCmd(o, rest...)
 	case "packwithidx":
-		check(false, 4)
-		return true, packWithIdxCmd(o, args...)
+		cmds.Check(3)
+		return true, packWithIdxCmd(o, rest...)
 	case "unpackfromfile":
-		check(false, 3)
-		return true, unpackFromFileCmd(o, args...)
+		cmds.Check(2)
+		return true, unpackFromFileCmd(o, rest...)
 	case "regedit":
-		check(true, 3)
-		return true, regeditCmd(args...)
+		cmds.Check(2)
+		cmdutil.Supports("windows")
+
+		return true, regeditCmd(rest...)
 	case "help", "h":
-		usage()
+		cmds.Usage()
+	case "version", "v":
+		version()
 	}
 
 	if winutil.IsAdmin() {
