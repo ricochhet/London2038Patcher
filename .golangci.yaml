@@ -114,6 +114,7 @@ linters:
             - github.com/go-chi/httprate
             - github.com/go-chi/cors
             - github.com/mattn/go-colorable
+            - github.com/tidwall/jsonc
             - github.com/ricochhet/london2038patcher
     funlen:
       lines: 100

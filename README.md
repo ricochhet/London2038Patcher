@@ -15,6 +15,11 @@ You can decode a patch index using `london2038patcher decode path/to/patch.idx p
 
 The tool does not support packing or unpacking of any other files or formats, use [Reanimator](https://hellgateaus.cyou/forum/hellgate-london-download-reanimator/reanimator-r1133/) if you need those features.
 
+### Hosting Files & Patches
+You can host a local file server with the patches (and other files) by using the `fileserver.json` under `assets`. Run `fileserver.exe` with `fileserver.json` next to the executable to start the server.
+
+You can then optionally redirect requests using your preferred method, whether it be through proxy, hosts file, etc., to point to your local file server.
+
 #### Additional Commands & Flags
 
 - `--debug` can be used to validate the CRC32 hashes of files when un/packing against an existing index. This will not work properly if an index was not created with CRC32 support.

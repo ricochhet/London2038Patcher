@@ -10,6 +10,7 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/byteutil"
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
+	"github.com/tidwall/jsonc"
 )
 
 type Header struct {
@@ -103,7 +104,7 @@ func EncodeFile(path, output string) error {
 	}
 
 	var idx Index
-	if err := json.Unmarshal(f, &idx); err != nil {
+	if err := json.Unmarshal(jsonc.ToJSON(f), &idx); err != nil {
 		return errutil.New("json.Unmarshal", err)
 	}
 

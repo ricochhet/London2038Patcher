@@ -6,6 +6,7 @@ import (
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
+	"github.com/tidwall/jsonc"
 )
 
 // ReadAndUnmarshal parses a JSON file from the specified path.
@@ -16,7 +17,7 @@ func ReadAndUnmarshal[T any](path string) (*T, error) {
 	}
 
 	var t T
-	if err := json.Unmarshal(data, &t); err != nil {
+	if err := json.Unmarshal(jsonc.ToJSON(data), &t); err != nil {
 		return nil, errutil.New("json.Unmarshal", err)
 	}
 

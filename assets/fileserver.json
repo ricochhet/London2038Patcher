@@ -1,0 +1,46 @@
+{
+    "servers": [
+        {
+            "port": 8080,
+            "fileEntries": [
+                {
+                    "route": "/patcher",
+                    "path": "London2038Patcher/B057EBE3/",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                }
+            ],
+            "contentEntries": [
+                {
+                    "route": "/",
+                    "name": "index.html",
+                    "base64": "asset:index.html", 
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/404.html",
+                    "name": "404.html",
+                    "base64": "asset:404.html",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/base.css",
+                    "name": "base.css",
+                    "base64": "asset:base.css",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                }
+            ]
+        }
+    ]
+}

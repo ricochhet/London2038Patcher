@@ -55,6 +55,14 @@ syso:
 png-to-icos:
 	magick $(ASSET_PATH)/win-icon.png -background none -define icon:auto-resize=256,128,64,48,32,16 $(ASSET_PATH)/win-icon.ico
 
+.PHONY: copy-assets
+copy-assets:
+	cp -r $(ASSET_PATH)/* $(BUILD_OUTPUT)
+
+.PHONY: gen-certs
+gen-certs:
+	mkcert localhost 127.0.0.1 ::1
+
 # ----- Patcher -----
 .PHONY: patcher
 patcher: patcher-linux patcher-linux-arm64 patcher-darwin patcher-darwin-arm64 patcher-windows
@@ -76,7 +84,7 @@ patcher-darwin-arm64: fmt
 	$(call GO_BUILD_APP,darwin,arm64,$(PATCHER_BIN_NAME)-darwin-arm64,$(PATCHER_PATH))
 
 .PHONY: patcher-windows
-patcher-windows: fmt
+patcher-windows: fmt copy-assets
 	$(call GO_BUILD_APP,windows,amd64,$(PATCHER_BIN_NAME).exe,$(PATCHER_PATH))
 
 # ----- FileServer -----
@@ -100,5 +108,5 @@ fileserver-darwin-arm64: fmt
 	$(call GO_BUILD_APP,darwin,arm64,$(FILESERVER_BIN_NAME)-darwin-arm64,$(FILESERVER_PATH))
 
 .PHONY: fileserver-windows
-fileserver-windows: fmt
+fileserver-windows: fmt copy-assets
 	$(call GO_BUILD_APP,windows,amd64,$(FILESERVER_BIN_NAME).exe,$(FILESERVER_PATH))
