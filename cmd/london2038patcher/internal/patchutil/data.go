@@ -167,7 +167,7 @@ func (lm *LocaleRegistry) packWithIndex(
 	var offset int64
 
 	if err := lm.readIntoIndex(idx, path, offset, locales); err != nil {
-		return err
+		return errutil.New("lm.readIntoIndex", err)
 	}
 
 	f, err := os.Create(patch)
@@ -209,7 +209,7 @@ func (lm *LocaleRegistry) packWithIndex(
 
 	data, err := Encode(idx)
 	if err != nil {
-		return err
+		return errutil.New("Encode", err)
 	}
 
 	return os.WriteFile(index, data, 0o644)
@@ -223,8 +223,12 @@ func (lm *LocaleRegistry) readIntoIndex(
 	locales *LocaleFilter,
 ) error {
 	return filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return err
+		if err != nil {
+			return errutil.WithFrame(err)
+		}
+
+		if info.IsDir() {
+			return nil
 		}
 
 		rel, err := filepath.Rel(path, target)

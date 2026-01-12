@@ -109,7 +109,7 @@ func EncodeFile(path, output string) error {
 
 	buf, err := Encode(&idx)
 	if err != nil {
-		return err
+		return errutil.New("Encode", err)
 	}
 
 	outFile, err := os.Create(output)

@@ -25,9 +25,9 @@ type FileEntry struct {
 }
 
 type ContentEntry struct {
-	Route string `json:"route"`
-	Name  string `json:"name"`
-	Bytes []byte `json:"bytes"`
+	Route  string `json:"route"`
+	Name   string `json:"name"`
+	Base64 string `json:"base64"` // Unmarshal handles []byte as base64, so just handle the key as a string.
 
 	Info Info `json:"info"`
 }

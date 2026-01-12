@@ -89,7 +89,7 @@ func (o *Options) UnpackFromFile(path, output string) error {
 
 	p, err := jsonutil.ReadAndUnmarshal[Patches](path)
 	if err != nil {
-		return err
+		return errutil.New("jsonutil.ReadAndUnmarshal", err)
 	}
 
 	return o.unpackFromFile(output, p)
@@ -99,7 +99,7 @@ func (o *Options) UnpackFromFile(path, output string) error {
 func (o *Options) unpackFromFile(output string, patches *Patches) error {
 	for _, patch := range patches.Patches {
 		if err := o.Unpack(patch.Idx, patch.Dat, output); err != nil {
-			return err
+			return errutil.WithFrame(err)
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/server"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
+	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
@@ -32,7 +33,7 @@ func dumpCmd(a ...string) error {
 func serverCmd(s *server.Context) error {
 	if err := s.StartServer(); err != nil {
 		logutil.Errorf(logutil.Get(), "Error starting server: %v\n", err)
-		return err
+		return errutil.WithFrame(err)
 	}
 
 	select {} // block

@@ -13,6 +13,7 @@ import (
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/serverutil"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
+	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
 	"github.com/ricochhet/london2038patcher/pkg/jsonutil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
@@ -41,7 +42,7 @@ func NewServer(configFile string, tls *configutil.TLS, fs *embedutil.EmbeddedFil
 func (c *Context) StartServer() error {
 	config, err := c.maybeReadConfig(c.ConfigFile)
 	if err != nil {
-		return err
+		return errutil.New("c.maybeReadConfig", err)
 	}
 
 	c.maybeTLS(config)
@@ -70,8 +71,8 @@ func (c *Context) StartServer() error {
 			TLS:    c.TLS,
 		})
 
-		if err := startServer(ctx, &cfg); err != nil {
-			return err
+		if err := c.startServer(ctx, &cfg); err != nil {
+			return errutil.New("c.startServer", err)
 		}
 	}
 
@@ -119,12 +120,14 @@ func (c *Context) maybeReadConfig(path string) (*configutil.Config, error) {
 }
 
 // startServer starts an HTTP server with the specified server configuration.
-func startServer(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) error {
+func (c *Context) startServer(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) error {
 	if err := serveFileHandler(ctx, cfg); err != nil {
-		return err
+		return errutil.New("serveFileHandler", err)
 	}
 
-	serveContentHandler(ctx, cfg)
+	if err := c.serveContentHandler(ctx, cfg); err != nil {
+		return errutil.New("c.serveContentHandler", err)
+	}
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	go ctx.ListenAndServe(addr)
@@ -137,16 +140,16 @@ func serveFileHandler(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) err
 	for _, f := range cfg.FileEntries {
 		info, err := os.Stat(f.Path)
 		if err != nil {
-			return fmt.Errorf("invalid path %s: %w", f.Path, err)
+			return errutil.WithFramef("invalid path %s: %w", f.Path, err)
 		}
 
 		if info.IsDir() {
 			if err := matchPattern(f, ctx, cfg); err != nil {
-				return err
+				return errutil.New("matchPattern", err)
 			}
 		} else {
 			if err := matchFile(f, ctx, cfg); err != nil {
-				return err
+				return errutil.New("matchFile", err)
 			}
 		}
 	}
@@ -162,7 +165,7 @@ func matchPattern(
 ) error {
 	return filepath.Walk(f.Path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return errutil.WithFrame(err)
 		}
 
 		if info.IsDir() {
@@ -171,12 +174,12 @@ func matchPattern(
 
 		abs, err := filepath.Abs(path)
 		if err != nil {
-			return fmt.Errorf("invalid path %s: %w", path, err)
+			return errutil.WithFramef("invalid path %s: %w", path, err)
 		}
 
 		rel, err := filepath.Rel(f.Path, path)
 		if err != nil {
-			return fmt.Errorf("cannot get relative path for %s: %w", path, err)
+			return errutil.WithFramef("cannot get relative path for %s: %w", path, err)
 		}
 
 		route := filepath.ToSlash(filepath.Join(f.Route, rel))
@@ -196,7 +199,7 @@ func matchFile(
 ) error {
 	abs, err := filepath.Abs(f.Path)
 	if err != nil {
-		return fmt.Errorf("invalid path %s: %w", f.Path, err)
+		return errutil.WithFramef("invalid path %s: %w", f.Path, err)
 	}
 
 	logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, f.Route, abs)
@@ -206,7 +209,7 @@ func matchFile(
 }
 
 // serveContentHandler handles the ServeContentHandler for each content entry.
-func serveContentHandler(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) {
+func (c *Context) serveContentHandler(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) error {
 	for _, f := range cfg.ContentEntries {
 		logutil.Infof(
 			logutil.Get(),
@@ -214,9 +217,16 @@ func serveContentHandler(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) 
 			cfg.Port,
 			f.Route,
 			f.Name,
-			len(f.Bytes),
+			len(f.Base64),
 		)
 
-		ctx.Handle(f.Route, serverutil.ServeContentHandler(f.Info, f.Name, f.Bytes))
+		b, err := maybeBase64(c.FS, f.Base64)
+		if err != nil {
+			return errutil.WithFrame(err)
+		}
+
+		ctx.Handle(f.Route, serverutil.ServeContentHandler(f.Info, f.Name, b))
 	}
+
+	return nil
 }
