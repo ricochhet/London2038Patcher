@@ -1,9 +1,13 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -23,6 +27,8 @@ type Context struct {
 	ConfigFile string
 	TLS        *configutil.TLS
 	FS         *embedutil.EmbeddedFileSystem
+
+	servers []*http.Server
 }
 
 // NewServer returns a new Server type with assets preloaded.
@@ -50,25 +56,30 @@ func (c *Context) StartServer() error {
 	for _, cfg := range config.Servers {
 		ctx := serverutil.NewHTTPServerCtx()
 
+		maxAge := 300
+		if cfg.MaxAge != 0 {
+			maxAge = cfg.MaxAge
+		}
+
 		r := chi.NewRouter()
 		r.Use(middleware.Recoverer)
 		r.Use(serverutil.WithLogging)
 		r.Use(httprate.LimitByIP(50, time.Minute))
-
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins:   []string{"https://*", "http://*"},
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 			AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 			ExposedHeaders:   []string{"Link"},
-			AllowCredentials: false,
-			MaxAge:           300,
+			AllowCredentials: cfg.AllowCredentials,
+			MaxAge:           maxAge,
 		}))
 
 		r.NotFound(c.NotFoundHandler)
 
 		ctx.Set(&serverutil.HTTPServer{
-			Router: r,
-			TLS:    c.TLS,
+			Router:   r,
+			TLS:      c.TLS,
+			Timeouts: &cfg.Timeouts,
 		})
 
 		if err := c.startServer(ctx, &cfg); err != nil {
@@ -76,7 +87,26 @@ func (c *Context) StartServer() error {
 		}
 	}
 
+	c.shutdown()
+
 	return nil
+}
+
+// shutdown handles shutdown of all servers.
+func (c *Context) shutdown() {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	for _, srv := range c.servers {
+		if err := srv.Shutdown(ctx); err != nil {
+			logutil.Errorf(logutil.Get(), "Error shutting down server: %v\n", err)
+		}
+	}
 }
 
 // maybeTLS sets TLS based on whether flags are based, or if relevant config options are used.
@@ -130,7 +160,9 @@ func (c *Context) startServer(ctx *serverutil.HTTPServerCtx, cfg *configutil.Ser
 	}
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
-	go ctx.ListenAndServe(addr)
+	srv := ctx.ListenAndServe(addr)
+
+	c.servers = append(c.servers, srv)
 
 	return nil
 }

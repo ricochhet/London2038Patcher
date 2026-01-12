@@ -11,7 +11,8 @@ import (
 type HTTPServer struct {
 	Router chi.Router
 
-	TLS *configutil.TLS
+	TLS      *configutil.TLS
+	Timeouts *configutil.Timeouts
 }
 
 type HTTPServerCtx struct {

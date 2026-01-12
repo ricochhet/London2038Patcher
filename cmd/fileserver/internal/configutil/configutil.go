@@ -11,8 +11,19 @@ type TLS struct {
 	KeyFile  string `json:"keyFile"`
 }
 
+type Timeouts struct {
+	ReadHeader int `json:"readHeader"`
+	Read       int `json:"read"`
+	Write      int `json:"write"`
+	Idle       int `json:"idle"`
+}
+
 type Server struct {
-	Port           int            `json:"port"`
+	Port             int      `json:"port"`
+	AllowCredentials bool     `json:"allowCredentials"`
+	MaxAge           int      `json:"maxAge"`
+	Timeouts         Timeouts `json:"timeouts"`
+
 	FileEntries    []FileEntry    `json:"fileEntries"`
 	ContentEntries []ContentEntry `json:"contentEntries"`
 }

@@ -36,5 +36,5 @@ func serverCmd(s *server.Context) error {
 		return errutil.WithFrame(err)
 	}
 
-	select {} // block
+	return nil
 }

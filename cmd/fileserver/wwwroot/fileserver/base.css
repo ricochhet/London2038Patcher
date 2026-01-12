@@ -206,7 +206,6 @@ li:not(:last-child) {
 .slv-button:active {
     border-bottom-width: 2px;
     margin-bottom: calc(7px - 2px);
-    /* Might need to be calc(4px - 2px) if within .slv-sleeve? */
     transform: translate(0px, 2px);
 }
 
@@ -292,7 +291,6 @@ li:not(:last-child) {
 .slv-sidebar .slv-item {
     margin-bottom: 6px;
     margin-left: 3px;
-    /* looks centered when not expanded */
 }
 
 :where(#slv-navbar.slv-expanded, :where(.slv-sidebar, .slv-topbar):not(#slv-navbar)) .slv-item {
