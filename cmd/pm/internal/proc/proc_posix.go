@@ -24,8 +24,11 @@ const (
 )
 
 var (
-	cmdStart  = []string{"/bin/sh", "-c"}
-	procAttrs = &unix.SysProcAttr{Setpgid: true}
+	cmdStart      = []string{"/bin/sh", "-c"}
+	procAttrs     = &unix.SysProcAttr{Setpgid: true}
+	forkProcAttrs = &unix.SysProcAttr{
+		Setsid: true,
+	}
 )
 
 // terminateProc terminates the process by sending the signal to the process.

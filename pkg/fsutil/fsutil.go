@@ -68,3 +68,16 @@ func Validate(path, hash string, h hash.Hash) bool {
 
 	return sum == strings.ToUpper(hash)
 }
+
+// JoinEnviron combines the given envs with the env by name.
+func JoinEnviron(name string, envs []string) string {
+	s := string(filepath.ListSeparator)
+	e := os.Getenv(name)
+	n := strings.Join(envs, s)
+
+	if e != "" {
+		return name + "=" + n + s + e
+	}
+
+	return name + "=" + n
+}

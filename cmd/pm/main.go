@@ -45,6 +45,10 @@ func main() {
 			PTY:            flags.PTY,
 			Interval:       flags.Interval,
 			ReverseOnStop:  flags.ReverseOnStop,
+			Overload:       flags.Overload,
+			Fork:           flags.Fork,
+			InheritStdin:   flags.InheritStdin,
+			Silent:         flags.Silent,
 		},
 	}
 

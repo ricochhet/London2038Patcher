@@ -23,6 +23,10 @@ type Flags struct {
 	PTY            bool
 	Interval       uint
 	ReverseOnStop  bool
+	Overload       bool
+	Fork           bool
+	InheritStdin   bool
+	Silent         bool
 }
 
 var (
@@ -69,4 +73,8 @@ func registerFlags(fs *flag.FlagSet, f *Flags) {
 	fs.BoolVar(&f.PTY, "pty", false, "Use a PTY for all processes (noop on Windows)")
 	fs.UintVar(&f.Interval, "interval", 0, "Seconds to wait between starting each process")
 	fs.BoolVar(&f.ReverseOnStop, "reverse-on-stop", false, "Reverse process order when stopping")
+	fs.BoolVar(&f.Overload, "overload", false, "Overwrite existing envs with the env file")
+	fs.BoolVar(&f.Fork, "fork", false, "Fork processes")
+	fs.BoolVar(&f.InheritStdin, "stdin", true, "Inherit stdin")
+	fs.BoolVar(&f.Silent, "silent", false, "Prevent processes from using stdout/stderr")
 }

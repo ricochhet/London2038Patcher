@@ -18,6 +18,9 @@ var (
 	procAttrs = &windows.SysProcAttr{
 		CreationFlags: windows.CREATE_UNICODE_ENVIRONMENT | windows.CREATE_NEW_PROCESS_GROUP,
 	}
+	forkProcAttrs = &windows.SysProcAttr{
+		CreationFlags: windows.CREATE_NEW_PROCESS_GROUP | windows.DETACHED_PROCESS,
+	}
 )
 
 // terminateProc terminates the process by sending the signal to the process.

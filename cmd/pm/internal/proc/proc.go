@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/ricochhet/london2038patcher/cmd/pm/internal/configutil"
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/ricochhet/london2038patcher/pkg/fsutil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 	"go.yaml.in/yaml/v4"
 )
@@ -39,6 +41,10 @@ type Options struct {
 	PTY            bool
 	Interval       uint
 	ReverseOnStop  bool
+	Overload       bool
+	Fork           bool
+	InheritStdin   bool
+	Silent         bool
 }
 
 // Start spawns procs.
@@ -78,8 +84,8 @@ func (c *Context) Start(ctx context.Context, sig <-chan os.Signal) error {
 
 	envs := c.Get().EnvFiles
 	if len(envs) > 0 {
-		if err := godotenv.Load(envs...); err != nil {
-			return errutil.New("godotenv.Load", err)
+		if err := c.loadEnv(envs); err != nil {
+			return errutil.New("c.loadenv", err)
 		}
 	}
 
@@ -121,6 +127,21 @@ func (c *Context) Check() error {
 	return nil
 }
 
+// loadEnv loads the env files using godotenv.Load.
+func (c *Context) loadEnv(e []string) error {
+	if c.Options.Overload {
+		if err := godotenv.Overload(e...); err != nil {
+			return errutil.New("godotenv.Overload", err)
+		}
+	}
+
+	if err := godotenv.Load(e...); err != nil {
+		return errutil.New("godotenv.Load", err)
+	}
+
+	return nil
+}
+
 // spawnProc starts the specified proc, and returns any error from running it.
 func (c *Context) spawnProc(name string, errCh chan<- error) {
 	proc := c.findProc(name)
@@ -128,10 +149,25 @@ func (c *Context) spawnProc(name string, errCh chan<- error) {
 
 	cs := slices.Concat(cmdStart, []string{proc.Cmdline})
 	cmd := exec.CommandContext(context.Background(), cs[0], cs[1:]...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = logger
-	cmd.Stderr = logger
-	cmd.SysProcAttr = procAttrs
+
+	if c.Options.InheritStdin {
+		cmd.Stdin = os.Stdin
+	}
+
+	if proc.Fork {
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		cmd.SysProcAttr = forkProcAttrs
+	} else {
+		cmd.Stdout = logger
+		cmd.Stderr = logger
+		cmd.SysProcAttr = procAttrs
+	}
+
+	if proc.Silent {
+		cmd.Stdout = io.Discard
+		cmd.Stderr = io.Discard
+	}
 
 	if err := c.startPTY(logger, cmd); err != nil {
 		select {
@@ -139,7 +175,7 @@ func (c *Context) spawnProc(name string, errCh chan<- error) {
 		default:
 		}
 
-		logutil.Infof(logutil.Get(), "Failed to open pty for %s: %s\n", name, err)
+		logutil.Errorf(logutil.Get(), "Failed to open pty for %s: %s\n", name, err)
 
 		return
 	}
@@ -149,24 +185,44 @@ func (c *Context) spawnProc(name string, errCh chan<- error) {
 		logutil.Infof(logutil.Get(), "Starting %s on port %d\n", name, proc.Port)
 	}
 
+	envs, err := godotenv.Read(c.GetLocked().EnvFiles...)
+	if err != nil {
+		logutil.Errorf(logutil.Get(), "Failed to read env: %v\n", err)
+		return
+	}
+
+	for key, value := range envs {
+		k, found := strings.CutPrefix(key, "SET_")
+		if !found {
+			continue
+		}
+
+		cmd.Env = append(cmd.Env, fsutil.JoinEnviron(k, []string{value}))
+		logutil.Debugf(logutil.Get(), "added env: %s=%s\n", "PATH", value)
+	}
+
 	if err := cmd.Start(); err != nil {
 		select {
 		case errCh <- err:
 		default:
 		}
 
-		logutil.Infof(logutil.Get(), "Failed to start %s: %s\n", name, err)
+		logutil.Errorf(logutil.Get(), "Failed to start %s: %s\n", name, err)
 
 		return
 	}
 
 	proc.Cmd = cmd
 	proc.StoppedBySupervisor = false
-	proc.Mutex.Unlock()
 
-	err := cmd.Wait()
+	if !proc.Fork {
+		proc.Mutex.Unlock()
 
-	proc.Mutex.Lock()
+		err = cmd.Wait()
+
+		proc.Mutex.Lock()
+	}
+
 	proc.Cond.Broadcast()
 
 	if err != nil && !proc.StoppedBySupervisor {

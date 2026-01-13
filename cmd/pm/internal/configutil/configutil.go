@@ -20,6 +20,8 @@ type Config struct {
 	// Port for RPC server
 	Port     uint `yaml:"port"`
 	BasePort uint `yaml:"baseport"`
+	Fork     bool `yaml:"fork"`
+	Silent   bool `yaml:"silent"`
 	Args     []string
 	EnvFiles []string
 	// If true, exit the supervisor process if a subprocess exits with an error.
@@ -38,6 +40,8 @@ type ProcInfo struct {
 	Port       uint
 	SetPort    bool
 	ColorIndex int
+	Fork       bool
+	Silent     bool
 
 	// True if we called stopProc to kill the process, in which case an
 	// *os.ExitError is not the fault of the subprocess
@@ -77,6 +81,8 @@ func (c *Context) Parse(b []byte) error {
 			c.Get().BasePort += 100
 		}
 
+		proc.Fork = c.Get().Fork
+		proc.Silent = c.Get().Silent
 		proc.Cond = sync.NewCond(&proc.Mutex)
 
 		c.Get().Procs = append(c.Get().Procs, proc)
