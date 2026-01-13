@@ -66,7 +66,7 @@ func NotifyCh() <-chan os.Signal {
 
 // startPTY starts a PTY terminal.
 func (c *Context) startPTY(logger *logutil.Logger, cmd *exec.Cmd) error {
-	if c.PTY {
+	if c.Options.PTY {
 		p, t, err := pty.Open()
 		if err != nil {
 			return errutil.WithFramef("failed to open PTY: %w", err)
