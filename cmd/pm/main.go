@@ -1,12 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"strings"
 
-	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
-	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/server"
+	"github.com/ricochhet/london2038patcher/cmd/pm/internal/proc"
 	"github.com/ricochhet/london2038patcher/pkg/cmdutil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 	"github.com/ricochhet/london2038patcher/pkg/winutil"
@@ -19,7 +19,7 @@ var (
 )
 
 func version() {
-	logutil.Infof(logutil.Get(), "fileserver-%s\n", gitHash)
+	logutil.Infof(logutil.Get(), "pm-%s\n", gitHash)
 	logutil.Infof(logutil.Get(), "Build date: %s\n", buildDate)
 	logutil.Infof(logutil.Get(), "Build on: %s\n", buildOn)
 	os.Exit(0)
@@ -28,11 +28,27 @@ func version() {
 func main() {
 	logutil.LogTime.Store(true)
 	logutil.MaxProcNameLength.Store(0)
-	logutil.Set(logutil.NewLogger("fileserver", 0))
+	logutil.Set(logutil.NewLogger("pm", 0))
 	logutil.SetDebug(flags.Debug)
 	_ = cmdutil.QuickEdit(flags.QuickEdit)
 
-	cmd, err := commands()
+	ctx := &proc.Context{
+		Options: &proc.Options{
+			ConfigFile:     flags.ConfigFile,
+			ProcFile:       flags.ProcFile,
+			EnvFiles:       flags.EnvFiles,
+			Port:           flags.Port,
+			BasePort:       flags.BasePort,
+			ExitOnError:    flags.ExitOnError,
+			ExitOnStop:     flags.ExitOnStop,
+			StartRPCServer: flags.StartRPCServer,
+			PTY:            flags.PTY,
+			Interval:       flags.Interval,
+			ReverseOnStop:  flags.ReverseOnStop,
+		},
+	}
+
+	cmd, err := commands(ctx)
 	if err != nil {
 		logutil.Errorf(logutil.Get(), "Error running command: %v\n", err)
 	}
@@ -41,18 +57,13 @@ func main() {
 		return
 	}
 
-	s := server.NewServer(flags.ConfigFile, &configutil.TLS{
-		Enabled:  true,
-		CertFile: flags.CertFile,
-		KeyFile:  flags.KeyFile,
-	}, Embed())
-	if err := serverCmd(s); err != nil {
+	if err := ctx.Start(context.Background(), proc.NotifyCh()); err != nil {
 		logutil.Errorf(logutil.Get(), "%w\n", err)
 	}
 }
 
 // commands handles the specified command flags.
-func commands() (bool, error) {
+func commands(ctx *proc.Context) (bool, error) {
 	args := flag.Args()
 	if len(args) == 0 {
 		return false, nil
@@ -62,18 +73,17 @@ func commands() (bool, error) {
 	rest := args[1:]
 
 	switch cmd {
-	case "dump", "d":
-		cmds.Check(1)
-		return true, dumpCmd(rest...)
-	case "list", "l":
-		cmds.Check(1)
-		return true, listCmd(rest...)
+	case "run":
+		cmds.Check(2)
+		return true, runCmd(rest...)
+	case "check", "c":
+		return true, checkCmd(ctx)
+	case "export", "e":
+		return true, exportCmd(ctx, rest...)
 	case "help", "h":
 		cmds.Usage()
 	case "version", "v":
 		version()
-	default:
-		cmds.Usage()
 	}
 
 	if winutil.IsAdmin() {

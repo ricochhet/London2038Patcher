@@ -115,6 +115,8 @@ linters:
             - github.com/go-chi/cors
             - github.com/mattn/go-colorable
             - github.com/tidwall/jsonc
+            - go.yaml.in/yaml/v4
+            - github.com/joho/godotenv
             - github.com/ricochhet/london2038patcher
     funlen:
       lines: 100

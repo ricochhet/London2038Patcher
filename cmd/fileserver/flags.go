@@ -7,10 +7,12 @@ import (
 )
 
 type Flags struct {
-	ConfigFile string
+	Debug     bool
+	QuickEdit bool
 
-	CertFile string
-	KeyFile  string
+	ConfigFile string
+	CertFile   string
+	KeyFile    string
 }
 
 var (
@@ -36,6 +38,8 @@ func init() {
 
 // registerFlags registers all flags to the flagset.
 func registerFlags(fs *flag.FlagSet, f *Flags) {
+	fs.BoolVar(&f.Debug, "debug", false, "Enable debug mode")
+	fs.BoolVar(&f.QuickEdit, "quick-edit", false, "Enable quick edit mode (Windows)")
 	fs.StringVar(&f.ConfigFile, "c", "fileserver.json", "Path to file server configuration")
 	fs.StringVar(&f.CertFile, "cert", "", "TLS cert")
 	fs.StringVar(&f.KeyFile, "key", "", "TLS key")

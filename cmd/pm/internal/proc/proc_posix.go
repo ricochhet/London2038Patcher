@@ -1,0 +1,84 @@
+//go:build !windows
+// +build !windows
+
+package proc
+
+import (
+	"io"
+	"os"
+	"os/exec"
+	"os/signal"
+
+	"github.com/creack/pty"
+	"github.com/ricochhet/london2038patcher/cmd/pm/internal/configutil"
+	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/ricochhet/london2038patcher/pkg/logutil"
+	"golang.org/x/sys/unix"
+)
+
+const (
+	sigint  = unix.SIGINT
+	sigterm = unix.SIGTERM
+	sighup  = unix.SIGHUP
+)
+
+var (
+	cmdStart  = []string{"/bin/sh", "-c"}
+	procAttrs = &unix.SysProcAttr{Setpgid: true}
+)
+
+// terminateProc terminates the process by sending the signal to the process.
+func terminateProc(proc *configutil.ProcInfo, signal os.Signal) error {
+	p := proc.Cmd.Process
+	if p == nil {
+		return nil
+	}
+
+	pgid, err := unix.Getpgid(p.Pid)
+	if err != nil {
+		return errutil.New("unix.Getpgid", err)
+	}
+
+	// use pgid, ref: http://unix.stackexchange.com/questions/14815/process-descendants
+	pid := p.Pid
+	if pgid == p.Pid {
+		pid = -1 * pid
+	}
+
+	target, err := os.FindProcess(pid)
+	if err != nil {
+		return errutil.New("os.FindProcess", err)
+	}
+	return target.Signal(signal)
+}
+
+// killProc kills the proc with pid pid, as well as its children.
+func killProc(process *os.Process) error {
+	return unix.Kill(-1*process.Pid, unix.SIGKILL)
+}
+
+// NotifyCh creates the terminate/interrupt notifier.
+func NotifyCh() <-chan os.Signal {
+	sc := make(chan os.Signal, 10)
+	signal.Notify(sc, sigterm, sigint, sighup)
+	return sc
+}
+
+// startPTY starts a PTY terminal.
+func (c *Context) startPTY(logger *logutil.Logger, cmd *exec.Cmd) error {
+	if c.PTY {
+		p, t, err := pty.Open()
+		if err != nil {
+			return errutil.WithFramef("failed to open PTY: %w", err)
+		}
+		defer p.Close()
+		defer t.Close()
+		cmd.Stdout = t
+		cmd.Stderr = t
+		go io.Copy(logger, p)
+	} else {
+		cmd.Stdout = logger
+		cmd.Stderr = logger
+	}
+	return nil
+}

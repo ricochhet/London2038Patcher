@@ -2,12 +2,13 @@ package main
 
 import (
 	"flag"
-	"strings"
 
 	"github.com/ricochhet/london2038patcher/pkg/cmdutil"
 )
 
 type Flags struct {
+	QuickEdit bool
+
 	ChecksumURL  string
 	PatchURL     string
 	ChecksumFile string
@@ -59,6 +60,8 @@ func init() {
 
 // registerFlags registers all flags to the flagset.
 func registerFlags(fs *flag.FlagSet, f *Flags) {
+	fs.BoolVar(&f.Debug, "debug", false, "Enable debug mode")
+	fs.BoolVar(&f.QuickEdit, "quick-edit", false, "Enable quick edit mode (Windows)")
 	fs.StringVar(
 		&f.ChecksumURL,
 		"checksum-url",
@@ -82,10 +85,4 @@ func registerFlags(fs *flag.FlagSet, f *Flags) {
 	fs.StringVar(&f.Locales, "locales", "en", "Set locale code for un/packing")
 	fs.StringVar(&f.Archs, "archs", "x64,x86", "Set architectures for un/packing")
 	fs.BoolVar(&f.CRC32, "crc32", false, "Hash files with CRC32 when packing files with index")
-	fs.BoolVar(&f.Debug, "debug", false, "Enable debug logging")
-}
-
-// toSlice converts a string to a slice.
-func toSlice(s, sep string) []string {
-	return strings.Split(s, sep)
 }

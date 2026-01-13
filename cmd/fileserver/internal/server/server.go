@@ -54,7 +54,7 @@ func (c *Context) StartServer() error {
 	c.maybeTLS(config)
 
 	for _, cfg := range config.Servers {
-		ctx := serverutil.NewHTTPServerCtx()
+		ctx := serverutil.NewContext()
 
 		maxAge := 300
 		if cfg.MaxAge != 0 {
@@ -76,7 +76,7 @@ func (c *Context) StartServer() error {
 
 		r.NotFound(c.NotFoundHandler)
 
-		ctx.Set(&serverutil.HTTPServer{
+		ctx.SetLocked(&serverutil.HTTPServer{
 			Router:   r,
 			TLS:      c.TLS,
 			Timeouts: &cfg.Timeouts,
@@ -150,7 +150,7 @@ func (c *Context) maybeReadConfig(path string) (*configutil.Config, error) {
 }
 
 // startServer starts an HTTP server with the specified server configuration.
-func (c *Context) startServer(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) error {
+func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) error {
 	if err := serveFileHandler(ctx, cfg); err != nil {
 		return errutil.New("serveFileHandler", err)
 	}
@@ -168,7 +168,7 @@ func (c *Context) startServer(ctx *serverutil.HTTPServerCtx, cfg *configutil.Ser
 }
 
 // serveContentHandler handles the ServeFileHandler for each file entry.
-func serveFileHandler(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) error {
+func serveFileHandler(ctx *serverutil.Context, cfg *configutil.Server) error {
 	for _, f := range cfg.FileEntries {
 		info, err := os.Stat(f.Path)
 		if err != nil {
@@ -192,7 +192,7 @@ func serveFileHandler(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) err
 // matchPattern handles file paths that contain glob information.
 func matchPattern(
 	f configutil.FileEntry,
-	ctx *serverutil.HTTPServerCtx,
+	ctx *serverutil.Context,
 	cfg *configutil.Server,
 ) error {
 	return filepath.Walk(f.Path, func(path string, info os.FileInfo, err error) error {
@@ -226,7 +226,7 @@ func matchPattern(
 // matchFile handles absolute file paths.
 func matchFile(
 	f configutil.FileEntry,
-	ctx *serverutil.HTTPServerCtx,
+	ctx *serverutil.Context,
 	cfg *configutil.Server,
 ) error {
 	abs, err := filepath.Abs(f.Path)
@@ -241,7 +241,7 @@ func matchFile(
 }
 
 // serveContentHandler handles the ServeContentHandler for each content entry.
-func (c *Context) serveContentHandler(ctx *serverutil.HTTPServerCtx, cfg *configutil.Server) error {
+func (c *Context) serveContentHandler(ctx *serverutil.Context, cfg *configutil.Server) error {
 	for _, f := range cfg.ContentEntries {
 		logutil.Infof(
 			logutil.Get(),

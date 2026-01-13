@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patcher"
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patchutil"
-	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/patcher"
 	"github.com/ricochhet/london2038patcher/pkg/cmdutil"
 	"github.com/ricochhet/london2038patcher/pkg/dlutil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
+	"github.com/ricochhet/london2038patcher/pkg/strutil"
 	"github.com/ricochhet/london2038patcher/pkg/winutil"
 )
 
@@ -31,6 +32,8 @@ func main() {
 	logutil.LogTime.Store(true)
 	logutil.MaxProcNameLength.Store(0)
 	logutil.Set(logutil.NewLogger("patcher", 0))
+	logutil.SetDebug(flags.Debug)
+	_ = cmdutil.QuickEdit(flags.QuickEdit)
 
 	cmd, err := commands()
 	if err != nil {
@@ -53,7 +56,9 @@ func main() {
 		PatchDir:      "",
 	})
 
-	_ = downloadCmd(p)
+	if err := downloadCmd(p); err != nil {
+		logutil.Errorf(logutil.Get(), "%w\n", err)
+	}
 }
 
 // commands handles the specified command flags.
@@ -68,7 +73,7 @@ func commands() (bool, error) {
 
 	lr := patchutil.NewDefaultLocaleRegistry()
 
-	lf, err := patchutil.NewLocaleFilter(lr, toSlice(flags.Locales, ","))
+	lf, err := patchutil.NewLocaleFilter(lr, strutil.ToSlice(flags.Locales, ","))
 	if err != nil {
 		return true, err
 	}
@@ -79,7 +84,7 @@ func commands() (bool, error) {
 		IdxOptions: &patchutil.IdxOptions{
 			CRC32: flags.CRC32,
 		},
-		Archs: toSlice(flags.Archs, ","),
+		Archs: strutil.ToSlice(flags.Archs, ","),
 	}
 
 	switch cmd {
@@ -110,6 +115,8 @@ func commands() (bool, error) {
 		cmds.Usage()
 	case "version", "v":
 		version()
+	default:
+		cmds.Usage()
 	}
 
 	if winutil.IsAdmin() {

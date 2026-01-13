@@ -11,14 +11,14 @@ import (
 )
 
 // listenAndServe creates an HTTP server at the specified address.
-func (h *HTTPServerCtx) ListenAndServe(addr string) *http.Server {
+func (h *Context) ListenAndServe(addr string) *http.Server {
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           h.httpServer.Router,
-		ReadHeaderTimeout: time.Duration(h.httpServer.Timeouts.ReadHeader) * time.Second,
-		ReadTimeout:       time.Duration(h.httpServer.Timeouts.Read) * time.Second,
-		WriteTimeout:      time.Duration(h.httpServer.Timeouts.Write) * time.Second,
-		IdleTimeout:       time.Duration(h.httpServer.Timeouts.Idle) * time.Second,
+		Handler:           h.Get().Router,
+		ReadHeaderTimeout: time.Duration(h.Get().Timeouts.ReadHeader) * time.Second,
+		ReadTimeout:       time.Duration(h.Get().Timeouts.Read) * time.Second,
+		WriteTimeout:      time.Duration(h.Get().Timeouts.Write) * time.Second,
+		IdleTimeout:       time.Duration(h.Get().Timeouts.Idle) * time.Second,
 	}
 
 	logutil.Infof(logutil.Get(), "Server listening on %s\n", addr)
@@ -26,13 +26,13 @@ func (h *HTTPServerCtx) ListenAndServe(addr string) *http.Server {
 	go func() {
 		var err error
 
-		if h.httpServer.TLS.Enabled {
+		if h.Get().TLS.Enabled {
 			fmt.Fprintf(
 				os.Stdout,
 				"Server starting with tls: %s (cert) and %s (key)\n",
-				h.httpServer.TLS.CertFile, h.httpServer.TLS.KeyFile,
+				h.Get().TLS.CertFile, h.Get().TLS.KeyFile,
 			)
-			err = server.ListenAndServeTLS(h.httpServer.TLS.CertFile, h.httpServer.TLS.KeyFile)
+			err = server.ListenAndServeTLS(h.Get().TLS.CertFile, h.Get().TLS.KeyFile)
 		} else {
 			err = server.ListenAndServe()
 		}

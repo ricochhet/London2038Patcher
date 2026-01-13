@@ -2,10 +2,10 @@ package serverutil
 
 import (
 	"net/http"
-	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
+	"github.com/ricochhet/london2038patcher/pkg/contextutil"
 )
 
 type HTTPServer struct {
@@ -15,40 +15,18 @@ type HTTPServer struct {
 	Timeouts *configutil.Timeouts
 }
 
-type HTTPServerCtx struct {
-	mu         sync.Mutex
-	httpServer *HTTPServer
+type Context struct {
+	*contextutil.Context[HTTPServer]
 }
 
-// NewHTTPServerCtx creates an empty PatcherCtx.
-func NewHTTPServerCtx() *HTTPServerCtx {
-	return &HTTPServerCtx{}
+// NewContext creates an empty Context.
+func NewContext() *Context {
+	return &Context{}
 }
 
-// Get returns the patcher.
-func (h *HTTPServerCtx) Get() *HTTPServer {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+func (h *Context) Handle(pattern string, handler http.Handler) {
+	h.Mutex.Lock()
+	defer h.Mutex.Unlock()
 
-	return h.httpServer
-}
-
-// Set sets the patcher.
-func (h *HTTPServerCtx) Set(server *HTTPServer) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.httpServer = server
-}
-
-// CopyFrom sets all patcher to the target.
-func (h *HTTPServerCtx) CopyFrom(target *HTTPServerCtx) {
-	h.Set(target.Get())
-}
-
-func (h *HTTPServerCtx) Handle(pattern string, handler http.Handler) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.httpServer.Router.Handle(pattern, handler)
+	h.Get().Router.Handle(pattern, handler)
 }

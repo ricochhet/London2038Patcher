@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patcher"
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/patchutil"
 	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/internal/regutil"
-	"github.com/ricochhet/london2038patcher/cmd/london2038patcher/patcher"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 	"github.com/ricochhet/london2038patcher/pkg/timeutil"
 )
@@ -11,12 +11,12 @@ import (
 // downloadCmd command.
 func downloadCmd(p *patcher.Context) error {
 	return timeutil.Timer(func() error {
-		pErr := p.Get().Download()
-		if pErr != nil {
-			logutil.Errorf(logutil.Get(), "Error downloading files: %v\n", pErr)
+		err := p.Get().Download()
+		if err != nil {
+			logutil.Errorf(logutil.Get(), "Error downloading files: %v\n", err)
 		}
 
-		return pErr
+		return err
 	}, "Download", func(_, elapsed string) {
 		logutil.Infof(logutil.Get(), "Took %s\n", elapsed)
 	})
@@ -25,12 +25,12 @@ func downloadCmd(p *patcher.Context) error {
 // decodeCmd command.
 func decodeCmd(a ...string) error {
 	return timeutil.Timer(func() error {
-		_, dErr := patchutil.DecodeFile(a[0], a[1])
-		if dErr != nil {
-			logutil.Errorf(logutil.Get(), "Error decoding index file: %v\n", dErr)
+		_, err := patchutil.DecodeFile(a[0], a[1])
+		if err != nil {
+			logutil.Errorf(logutil.Get(), "Error decoding index file: %v\n", err)
 		}
 
-		return dErr
+		return err
 	}, "Decode", func(_, elapsed string) {
 		logutil.Infof(logutil.Get(), "Took %s\n", elapsed)
 	})
@@ -39,12 +39,12 @@ func decodeCmd(a ...string) error {
 // encodeCmd command.
 func encodeCmd(a ...string) error {
 	return timeutil.Timer(func() error {
-		eErr := patchutil.EncodeFile(a[0], a[1])
-		if eErr != nil {
-			logutil.Errorf(logutil.Get(), "Error encoding index file: %v\n", eErr)
+		err := patchutil.EncodeFile(a[0], a[1])
+		if err != nil {
+			logutil.Errorf(logutil.Get(), "Error encoding index file: %v\n", err)
 		}
 
-		return eErr
+		return err
 	}, "Encode", func(_, elapsed string) {
 		logutil.Infof(logutil.Get(), "Took %s\n", elapsed)
 	})
@@ -53,12 +53,12 @@ func encodeCmd(a ...string) error {
 // unpackCmd command.
 func unpackCmd(o patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
-		uErr := o.Unpack(a[0], a[1], a[2])
-		if uErr != nil {
-			logutil.Errorf(logutil.Get(), "Error unpacking patch: %v\n", uErr)
+		err := o.Unpack(a[0], a[1], a[2])
+		if err != nil {
+			logutil.Errorf(logutil.Get(), "Error unpacking patch: %v\n", err)
 		}
 
-		return uErr
+		return err
 	}, "Unpack", func(_, elapsed string) {
 		logutil.Infof(logutil.Get(), "Took %s\n", elapsed)
 	})
@@ -67,12 +67,12 @@ func unpackCmd(o patchutil.Options, a ...string) error {
 // packCmd command.
 func packCmd(o patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
-		pErr := o.Pack(a[0], a[1], a[2])
-		if pErr != nil {
-			logutil.Errorf(logutil.Get(), "Error packing patch: %v\n", pErr)
+		err := o.Pack(a[0], a[1], a[2])
+		if err != nil {
+			logutil.Errorf(logutil.Get(), "Error packing patch: %v\n", err)
 		}
 
-		return pErr
+		return err
 	}, "Pack", func(_, elapsed string) {
 		logutil.Infof(logutil.Get(), "Took %s\n", elapsed)
 	})
@@ -81,12 +81,12 @@ func packCmd(o patchutil.Options, a ...string) error {
 // packWithIdxCmd command.
 func packWithIdxCmd(o patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
-		pErr := o.PackWithIndex(a[0], a[1], a[2])
-		if pErr != nil {
-			logutil.Errorf(logutil.Get(), "Error packing patch: %v\n", pErr)
+		err := o.PackWithIndex(a[0], a[1], a[2])
+		if err != nil {
+			logutil.Errorf(logutil.Get(), "Error packing patch: %v\n", err)
 		}
 
-		return pErr
+		return err
 	}, "PackWithIndex", func(_, elapsed string) {
 		logutil.Infof(logutil.Get(), "Took %s\n", elapsed)
 	})
@@ -95,12 +95,12 @@ func packWithIdxCmd(o patchutil.Options, a ...string) error {
 // unpackFromFileCmd command.
 func unpackFromFileCmd(o patchutil.Options, a ...string) error {
 	return timeutil.Timer(func() error {
-		uErr := o.UnpackFromFile(a[0], a[1])
-		if uErr != nil {
-			logutil.Errorf(logutil.Get(), "Error unpacking patch: %v\n", uErr)
+		err := o.UnpackFromFile(a[0], a[1])
+		if err != nil {
+			logutil.Errorf(logutil.Get(), "Error unpacking patch: %v\n", err)
 		}
 
-		return uErr
+		return err
 	}, "UnpackFromFile", func(_, elapsed string) {
 		logutil.Infof(logutil.Get(), "Took %s\n", elapsed)
 	})
@@ -109,12 +109,12 @@ func unpackFromFileCmd(o patchutil.Options, a ...string) error {
 // regeditCmd command.
 func regeditCmd(a ...string) error {
 	return timeutil.Timer(func() error {
-		rErr := regutil.Regedit(a[0], a[1])
-		if rErr != nil {
-			logutil.Errorf(logutil.Get(), "Error editing registry: %v\n", rErr)
+		err := regutil.Regedit(a[0], a[1])
+		if err != nil {
+			logutil.Errorf(logutil.Get(), "Error editing registry: %v\n", err)
 		}
 
-		return rErr
+		return err
 	}, "Regedit", func(_, elapsed string) {
 		logutil.Infof(logutil.Get(), "Took %s\n", elapsed)
 	})
