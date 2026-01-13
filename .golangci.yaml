@@ -117,6 +117,8 @@ linters:
             - github.com/tidwall/jsonc
             - go.yaml.in/yaml/v4
             - github.com/joho/godotenv
+            - github.com/creack/pty
+            - golang.org/x/sys/unix
             - github.com/ricochhet/london2038patcher
     funlen:
       lines: 100

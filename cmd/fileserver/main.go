@@ -47,7 +47,7 @@ func main() {
 		KeyFile:  flags.KeyFile,
 	}, Embed())
 	if err := serverCmd(s); err != nil {
-		logutil.Errorf(logutil.Get(), "%w\n", err)
+		logutil.Errorf(logutil.Get(), "%v\n", err)
 	}
 }
 

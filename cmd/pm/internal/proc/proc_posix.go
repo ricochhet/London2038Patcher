@@ -4,6 +4,7 @@
 package proc
 
 import (
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -71,14 +72,24 @@ func (c *Context) startPTY(logger *logutil.Logger, cmd *exec.Cmd) error {
 		if err != nil {
 			return errutil.WithFramef("failed to open PTY: %w", err)
 		}
+
 		defer p.Close()
 		defer t.Close()
+
 		cmd.Stdout = t
 		cmd.Stderr = t
+
+		go func() {
+			if _, err := io.Copy(logger, p); err != nil && !errors.Is(err, io.EOF) {
+				logutil.Errorf(os.Stderr, "%v\n", err)
+			}
+		}()
+
 		go io.Copy(logger, p)
 	} else {
 		cmd.Stdout = logger
 		cmd.Stderr = logger
 	}
+
 	return nil
 }
