@@ -50,6 +50,7 @@ func terminateProc(proc *configutil.ProcInfo, signal os.Signal) error {
 	if err != nil {
 		return errutil.New("os.FindProcess", err)
 	}
+
 	return target.Signal(signal)
 }
 
@@ -62,6 +63,7 @@ func killProc(process *os.Process) error {
 func NotifyCh() <-chan os.Signal {
 	sc := make(chan os.Signal, 10)
 	signal.Notify(sc, sigterm, sigint, sighup)
+
 	return sc
 }
 
@@ -84,8 +86,6 @@ func (c *Context) startPTY(logger *logutil.Logger, cmd *exec.Cmd) error {
 				logutil.Errorf(os.Stderr, "%v\n", err)
 			}
 		}()
-
-		go io.Copy(logger, p)
 	} else {
 		cmd.Stdout = logger
 		cmd.Stderr = logger
