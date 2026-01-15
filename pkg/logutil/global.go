@@ -1,9 +1,9 @@
 package logutil
 
-import "sync"
+import "github.com/sasha-s/go-deadlock"
 
 type GLog struct {
-	mu     sync.Mutex
+	mu     deadlock.Mutex
 	logger *Logger
 }
 

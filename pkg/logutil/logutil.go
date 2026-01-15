@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/mattn/go-colorable"
 	"github.com/ricochhet/london2038patcher/pkg/atomicutil"
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/sasha-s/go-deadlock"
 )
 
 type Logger struct {
@@ -30,7 +30,7 @@ var Colors = []int{
 	34, // Blue.
 	31, // Red.
 }
-var mutex sync.Mutex
+var mutex deadlock.Mutex
 
 var out = colorable.NewColorableStdout()
 

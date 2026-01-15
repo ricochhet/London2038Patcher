@@ -13,6 +13,7 @@ import (
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
+	"github.com/sasha-s/go-deadlock"
 )
 
 type Config struct {
@@ -47,7 +48,7 @@ type ProcInfo struct {
 	// *os.ExitError is not the fault of the subprocess
 	StoppedBySupervisor bool
 
-	Mutex   sync.Mutex
+	Mutex   deadlock.Mutex
 	Cond    *sync.Cond
 	WaitErr error
 }

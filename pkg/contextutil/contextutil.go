@@ -1,9 +1,9 @@
 package contextutil
 
-import "sync"
+import "github.com/sasha-s/go-deadlock"
 
 type Context[T any] struct {
-	Mutex sync.Mutex
+	Mutex deadlock.Mutex
 	t     *T
 }
 

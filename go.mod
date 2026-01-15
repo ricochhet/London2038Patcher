@@ -11,6 +11,7 @@ require (
 	github.com/go-chi/httprate v0.15.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-colorable v0.1.14
+	github.com/sasha-s/go-deadlock v0.3.6
 	github.com/tidwall/jsonc v0.3.2
 	go.yaml.in/yaml/v4 v4.0.0-rc.3
 )
@@ -18,5 +19,6 @@ require (
 require (
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/petermattis/goid v0.0.0-20250813065127-a731cc31b4fe // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 )

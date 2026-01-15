@@ -19,9 +19,10 @@ type Context struct {
 	*contextutil.Context[HTTPServer]
 }
 
-// NewContext creates an empty Context.
 func NewContext() *Context {
-	return &Context{}
+	return &Context{
+		&contextutil.Context[HTTPServer]{},
+	}
 }
 
 func (h *Context) Handle(pattern string, handler http.Handler) {
