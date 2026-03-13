@@ -1,8 +1,9 @@
 package configutil
 
 type Config struct {
-	TLS     TLS      `json:"tls"`
-	Servers []Server `json:"servers"`
+	Hosts   map[string]string `json:"hosts"`
+	TLS     TLS               `json:"tls"`
+	Servers []Server          `json:"servers"`
 }
 
 type TLS struct {

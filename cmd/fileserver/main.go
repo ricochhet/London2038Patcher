@@ -41,7 +41,7 @@ func main() {
 		return
 	}
 
-	s := server.NewServer(flags.ConfigFile, &configutil.TLS{
+	s := server.NewServer(flags.ConfigFile, flags.Hosts, &configutil.TLS{
 		Enabled:  true,
 		CertFile: flags.CertFile,
 		KeyFile:  flags.KeyFile,

@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/hostsutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/serverutil"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
@@ -25,6 +26,7 @@ import (
 
 type Context struct {
 	ConfigFile string
+	Hosts      bool
 	TLS        *configutil.TLS
 	FS         *embedutil.EmbeddedFileSystem
 
@@ -32,12 +34,18 @@ type Context struct {
 }
 
 // NewServer returns a new Server type with assets preloaded.
-func NewServer(configFile string, tls *configutil.TLS, fs *embedutil.EmbeddedFileSystem) *Context {
+func NewServer(
+	configFile string,
+	hosts bool,
+	tls *configutil.TLS,
+	fs *embedutil.EmbeddedFileSystem,
+) *Context {
 	s := &Context{}
 	if configFile != "" {
 		s.ConfigFile = configFile
 	}
 
+	s.Hosts = hosts
 	s.TLS = tls
 	s.FS = fs
 
@@ -49,6 +57,10 @@ func (c *Context) StartServer() error {
 	config, err := c.maybeReadConfig(c.ConfigFile)
 	if err != nil {
 		return errutil.New("c.maybeReadConfig", err)
+	}
+
+	if err := c.addHosts(config); err != nil {
+		return errutil.New("c.addHosts", err)
 	}
 
 	c.maybeTLS(config)
@@ -87,6 +99,10 @@ func (c *Context) StartServer() error {
 		}
 	}
 
+	if err := c.removeHosts(config); err != nil {
+		return errutil.New("c.removeHosts", err)
+	}
+
 	c.shutdown()
 
 	return nil
@@ -107,6 +123,39 @@ func (c *Context) shutdown() {
 			logutil.Errorf(logutil.Get(), "Error shutting down server: %v\n", err)
 		}
 	}
+}
+
+// addHosts adds the specified hosts from the configuration.
+func (c *Context) addHosts(cfg *configutil.Config) error {
+	if !c.isHostsValid(cfg) {
+		return nil
+	}
+
+	hf, err := hostsutil.NewHosts()
+	if err != nil {
+		return errutil.New("hostsutil.NewHosts", err)
+	}
+
+	return hostsutil.Add(hf, cfg.Hosts)
+}
+
+// removeHosts removes the specified hosts from the configuration.
+func (c *Context) removeHosts(cfg *configutil.Config) error {
+	if !c.isHostsValid(cfg) {
+		return nil
+	}
+
+	hf, err := hostsutil.NewHosts()
+	if err != nil {
+		return errutil.New("hostsutil.NewHosts", err)
+	}
+
+	return hostsutil.Remove(hf, cfg.Hosts)
+}
+
+// isHostsValid returns if the hosts state is valid.
+func (c *Context) isHostsValid(cfg *configutil.Config) bool {
+	return c.Hosts && cfg.Hosts != nil && len(cfg.Hosts) != 0
 }
 
 // maybeTLS sets TLS based on whether flags are based, or if relevant config options are used.

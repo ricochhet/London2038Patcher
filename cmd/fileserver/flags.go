@@ -13,6 +13,8 @@ type Flags struct {
 	ConfigFile string
 	CertFile   string
 	KeyFile    string
+
+	Hosts bool
 }
 
 var (
@@ -43,4 +45,5 @@ func registerFlags(fs *flag.FlagSet, f *Flags) {
 	fs.StringVar(&f.ConfigFile, "c", "fileserver.json", "Path to file server configuration")
 	fs.StringVar(&f.CertFile, "cert", "", "TLS cert")
 	fs.StringVar(&f.KeyFile, "key", "", "TLS key")
+	fs.BoolVar(&f.Hosts, "hosts", false, "Modify hosts according to configuration")
 }
