@@ -16,6 +16,11 @@
         {{if not .IsLast}}<span class="sep">/</span>{{end}}
         {{end}}
     </div>
+    <div class="fs-search-wrap">
+        <input class="fs-search-input" type="text" placeholder="Search files…" id="fs-search-input" autocomplete="off"
+            spellcheck="false">
+        <div class="fs-search-results" id="fs-search-results"></div>
+    </div>
     <hr>
     <table class="fs-table">
         <thead>
@@ -64,6 +69,112 @@
             {{end}}
         </tbody>
     </table>
+    <script>
+        (function () {
+            var ROUTE = {{.Route | printf "%q"
+        }};
+        var input = document.getElementById("fs-search-input");
+        var results = document.getElementById("fs-search-results");
+        var timer = null;
+
+        var activeIdx = -1;
+
+        function closeResults() {
+            results.classList.remove("open");
+            results.innerHTML = "";
+            activeIdx = -1;
+        }
+
+        function doSearch(q) {
+            activeIdx = -1;
+            if (!q) { closeResults(); return; }
+            fetch(ROUTE + "?search=" + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (items) {
+                    if (!items || items.length === 0) {
+                        results.innerHTML = '<div class="fs-search-empty">No results for “' + q + '”</div>';
+                    } else {
+                        results.innerHTML = items.map(function (item) {
+                            return '<a class="fs-search-item" href="' + item.highlightURL + '">'
+                                + '<span class="fs-search-item-name">' + escHtml(item.name) + '</span>'
+                                + '<span class="fs-search-item-path">' + escHtml(item.relPath) + '</span>'
+                                + '</a>';
+                        }).join("");
+                    }
+                    results.classList.add("open");
+                })
+                .catch(function () { closeResults(); });
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+
+        input.addEventListener("input", function () {
+            clearTimeout(timer);
+            var q = input.value.trim();
+            if (!q) { closeResults(); return; }
+            timer = setTimeout(function () { doSearch(q); }, 200);
+        });
+
+        function setActive(idx) {
+            var items = results.querySelectorAll(".fs-search-item");
+            if (activeIdx >= 0 && activeIdx < items.length) {
+                items[activeIdx].classList.remove("fs-search-item-active");
+            }
+            activeIdx = idx;
+            if (activeIdx >= 0 && activeIdx < items.length) {
+                items[activeIdx].classList.add("fs-search-item-active");
+                items[activeIdx].scrollIntoView({ block: "nearest" });
+            }
+        }
+
+        input.addEventListener("keydown", function (e) {
+            var items = results.querySelectorAll(".fs-search-item");
+            if (e.key === "Escape") {
+                closeResults();
+                input.value = "";
+                activeIdx = -1;
+            } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                if (!results.classList.contains("open")) return;
+                setActive(Math.min(activeIdx + 1, items.length - 1));
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                if (!results.classList.contains("open")) return;
+                setActive(Math.max(activeIdx - 1, 0));
+            } else if (e.key === "Enter") {
+                if (activeIdx >= 0 && activeIdx < items.length) {
+                    e.preventDefault();
+                    items[activeIdx].click();
+                }
+            }
+        });
+
+        document.addEventListener("click", function (e) {
+            if (!input.contains(e.target) && !results.contains(e.target)) closeResults();
+        });
+
+        var params = new URLSearchParams(window.location.search);
+        var hl = params.get("highlight");
+        if (hl) {
+            var rows = document.querySelectorAll("tbody tr");
+            for (var i = 0; i < rows.length; i++) {
+                var link = rows[i].querySelector("td a");
+                if (link && link.textContent.trim() === hl) {
+                    rows[i].classList.add("fs-row-highlight");
+                    rows[i].scrollIntoView({ behavior: "smooth", block: "center" });
+                    setTimeout(function (row) {
+                        row.classList.remove("fs-row-highlight");
+                        row.classList.add("fs-row-highlight-fade");
+                    }, 1500, rows[i]);
+                    break;
+                }
+            }
+        }
+        }) ();
+    </script>
+
     {{if .Readme}}
     <hr>
     <div id="readme-src" style="display:none">{{.Readme}}</div>

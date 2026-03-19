@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,15 +24,23 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/strutil"
 )
 
-type FileInfoResponse struct {
+type fileInfoResponse struct {
 	Name        string    `json:"name"`
 	Path        string    `json:"path"`
+	FullPath    string    `json:"fullPath"`
 	Extension   string    `json:"extension,omitempty"`
 	MimeType    string    `json:"mimeType,omitempty"`
 	Size        int64     `json:"size"`
 	Modified    time.Time `json:"modified"`
 	IsDirectory bool      `json:"isDirectory"`
 	MD5         string    `json:"md5,omitempty"`
+}
+
+type searchResult struct {
+	Name         string `json:"name"`
+	RelPath      string `json:"relPath"`
+	HighlightURL string `json:"highlightURL"`
+	DownloadURL  string `json:"downloadURL"`
 }
 
 type breadcrumb struct {
@@ -57,6 +66,7 @@ type dirTemplateData struct {
 	Entries     []dirEntry
 	IsEmpty     bool
 	Readme      string
+	Route       string
 }
 
 // DirectoryBrowseHandler is a handler that supplies a file browser.
@@ -75,6 +85,11 @@ func DirectoryBrowseHandler(
 	tmpl := template.Must(template.New("dir").Parse(string(bytes)))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Has("search") {
+			handleSearch(w, absBase, route, r.URL.Query().Get("search"))
+			return
+		}
+
 		sub := filepath.FromSlash(chi.URLParam(r, "*"))
 
 		abs, err := fsutil.SafeJoin(absBase, sub)
@@ -100,7 +115,7 @@ func DirectoryBrowseHandler(
 		case r.URL.Query().Has("info"):
 			handleInfo(w, r, abs, absBase, stat)
 		case stat.IsDir():
-			handleDirListing(w, r, tmpl, abs, route, filepath.ToSlash(sub))
+			handleDirListing(w, r, tmpl, abs, route, filepath.ToSlash(sub), route)
 		default:
 			http.ServeFile(w, r, abs)
 		}
@@ -112,7 +127,8 @@ func handleDirListing(
 	w http.ResponseWriter,
 	_ *http.Request,
 	tmpl *template.Template,
-	absPath, baseRoute, subPath string,
+	absPath, route, subPath string,
+	browseRoute string,
 ) {
 	dirEntries, err := os.ReadDir(absPath)
 	if err != nil {
@@ -140,9 +156,9 @@ func handleDirListing(
 
 		var entryURL string
 		if trimmed == "" {
-			entryURL = baseRoute + "/" + e.Name()
+			entryURL = route + "/" + e.Name()
 		} else {
-			entryURL = baseRoute + "/" + trimmed + "/" + e.Name()
+			entryURL = route + "/" + trimmed + "/" + e.Name()
 		}
 
 		sizeStr := "—"
@@ -166,9 +182,9 @@ func handleDirListing(
 	if trimmed != "" {
 		up := path.Dir("/" + trimmed)
 		if up == "/" {
-			parent = baseRoute + "/"
+			parent = route + "/"
 		} else {
-			parent = baseRoute + up
+			parent = route + up
 		}
 	}
 
@@ -184,11 +200,12 @@ func handleDirListing(
 
 	data := dirTemplateData{
 		Title:       title,
-		Breadcrumbs: buildBreadcrumbs(baseRoute, trimmed),
+		Breadcrumbs: buildBreadcrumbs(route, trimmed),
 		Parent:      parent,
 		Entries:     entries,
 		IsEmpty:     len(entries) == 0,
 		Readme:      readme,
+		Route:       browseRoute,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -303,11 +320,10 @@ func handleInfo(
 	rel, _ := filepath.Rel(base, path)
 	rel = filepath.ToSlash(rel)
 
-	relPath := "/" + rel
-
-	res := FileInfoResponse{
+	res := fileInfoResponse{
 		Name:        stat.Name(),
-		Path:        relPath,
+		Path:        "/" + rel,
+		FullPath:    path,
 		Size:        stat.Size(),
 		Modified:    stat.ModTime().UTC(),
 		IsDirectory: stat.IsDir(),
@@ -333,4 +349,56 @@ func handleInfo(
 	if err := enc.Encode(res); err != nil {
 		logutil.Errorf(logutil.Get(), "handleInfo encode: %v\n", err)
 	}
+}
+
+// handleSearch walks abs and returns JSON results matching the query.
+func handleSearch(w http.ResponseWriter, abs, route, query string) {
+	var results []searchResult
+
+	query = strings.ToLower(strings.TrimSpace(query))
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	if query == "" {
+		_ = json.NewEncoder(w).Encode(results)
+		return
+	}
+
+	_ = filepath.Walk(abs, func(walkPath string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+
+		if !strings.Contains(strings.ToLower(info.Name()), query) {
+			return nil
+		}
+
+		rel, err := filepath.Rel(abs, walkPath)
+		if err != nil {
+			return nil
+		}
+
+		rel = filepath.ToSlash(rel)
+		dir := path.Dir(rel)
+
+		var dirURL string
+		if dir == "." {
+			dirURL = route + "/"
+		} else {
+			dirURL = route + "/" + dir
+		}
+
+		results = append(results, searchResult{
+			Name:         info.Name(),
+			RelPath:      rel,
+			HighlightURL: dirURL + "?highlight=" + url.QueryEscape(info.Name()),
+			DownloadURL:  route + "/" + rel + "?download",
+		})
+
+		return nil
+	})
+
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(results)
 }
