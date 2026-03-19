@@ -33,9 +33,27 @@
                     }
                 },
                 {
-                    "route": "/base.css",
-                    "name": "base.css",
-                    "base64": "asset:base.css",
+                    "route": "/css/base.css",
+                    "name": "css/base.css",
+                    "base64": "asset:css/base.css",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/css/extra.css",
+                    "name": "css/extra.css",
+                    "base64": "asset:css/extra.css",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/marked.min.js",
+                    "name": "js/marked.min.js",
+                    "base64": "asset:js/marked.min.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}

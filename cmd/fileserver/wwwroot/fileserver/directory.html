@@ -4,7 +4,8 @@
 <head>
     <title>fileserver | {{.Title}}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="/base.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/extra.css">
 </head>
 
 <body class="slv-ignore-darkreader">
@@ -63,6 +64,19 @@
             {{end}}
         </tbody>
     </table>
+    {{if .Readme}}
+    <hr>
+    <div id="readme-src" style="display:none">{{.Readme}}</div>
+    <div id="readme-render" class="readme"></div>
+    <script src="/js/marked.min.js"></script>
+    <script>
+        (function () {
+            var raw = document.getElementById("readme-src").textContent;
+            var html = marked.parse(raw);
+            document.getElementById("readme-render").innerHTML = html;
+        })();
+    </script>
+    {{end}}
 </body>
 
 </html>

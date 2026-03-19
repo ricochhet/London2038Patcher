@@ -56,6 +56,7 @@ type dirTemplateData struct {
 	Parent      string
 	Entries     []dirEntry
 	IsEmpty     bool
+	Readme      string
 }
 
 // DirectoryBrowseHandler is a handler that supplies a file browser.
@@ -176,12 +177,18 @@ func handleDirListing(
 		title = trimmed
 	}
 
+	readme := ""
+	if b, err := os.ReadFile(filepath.Join(absPath, "README.md")); err == nil {
+		readme = string(b)
+	}
+
 	data := dirTemplateData{
 		Title:       title,
 		Breadcrumbs: buildBreadcrumbs(baseRoute, trimmed),
 		Parent:      parent,
 		Entries:     entries,
 		IsEmpty:     len(entries) == 0,
+		Readme:      readme,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
