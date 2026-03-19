@@ -10,7 +10,7 @@
                         "statusCode": 0,
                         "headers": {}
                     },
-                    "browse": true
+                    "browse": "/browse"
                 }
             ],
             "contentEntries": [

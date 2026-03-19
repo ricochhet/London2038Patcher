@@ -26,7 +26,6 @@ import (
 type FileInfoResponse struct {
 	Name        string    `json:"name"`
 	Path        string    `json:"path"`
-	FullPath    string    `json:"fullPath"`
 	Extension   string    `json:"extension,omitempty"`
 	MimeType    string    `json:"mimeType,omitempty"`
 	Size        int64     `json:"size"`
@@ -297,10 +296,11 @@ func handleInfo(
 	rel, _ := filepath.Rel(base, path)
 	rel = filepath.ToSlash(rel)
 
+	relPath := "/" + rel
+
 	res := FileInfoResponse{
 		Name:        stat.Name(),
-		Path:        "/" + rel,
-		FullPath:    path,
+		Path:        relPath,
 		Size:        stat.Size(),
 		Modified:    stat.ModTime().UTC(),
 		IsDirectory: stat.IsDir(),

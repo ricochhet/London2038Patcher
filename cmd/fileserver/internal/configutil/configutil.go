@@ -32,7 +32,7 @@ type Server struct {
 type FileEntry struct {
 	Route  string `json:"route"`
 	Path   string `json:"path"`
-	Browse bool   `json:"browse"`
+	Browse string `json:"browse"`
 
 	Info Info `json:"info"`
 }

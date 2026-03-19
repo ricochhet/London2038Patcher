@@ -218,8 +218,6 @@ func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) e
 }
 
 // serveFileHandler handles the ServeFileHandler for each file entry.
-// When f.Browse is true and the path is a directory, a live directory browser
-// is registered instead of walking the tree at startup.
 func (c *Context) serveFileHandler(ctx *serverutil.Context, cfg *configutil.Server) error {
 	for _, f := range cfg.FileEntries {
 		info, err := os.Stat(f.Path)
@@ -227,16 +225,14 @@ func (c *Context) serveFileHandler(ctx *serverutil.Context, cfg *configutil.Serv
 			return errutil.WithFramef("invalid path %s: %w", f.Path, err)
 		}
 
-		if info.IsDir() && f.Browse {
-			route := strings.TrimSuffix(f.Route, "/")
+		if info.IsDir() && f.Browse != "" {
+			route := strings.TrimSuffix(f.Browse, "/")
 			handler := DirectoryBrowseHandler(c.FS, f.Path, route)
 
 			logutil.Infof(logutil.Get(), "Port %d: %s/** -> %s (browse)\n", cfg.Port, route, f.Path)
 
 			ctx.Handle(route, handler)
 			ctx.Handle(route+"/*", handler)
-
-			continue
 		}
 
 		if info.IsDir() {
