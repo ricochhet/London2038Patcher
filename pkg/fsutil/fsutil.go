@@ -2,6 +2,7 @@ package fsutil
 
 import (
 	"encoding/hex"
+	"fmt"
 	"hash"
 	"io"
 	"os"
@@ -80,4 +81,20 @@ func JoinEnviron(name string, envs []string) string {
 	}
 
 	return name + "=" + n
+}
+
+// SafeJoin ensures the joined path does not escape base.
+func SafeJoin(base, rel string) (string, error) {
+	joined := filepath.Join(base, rel)
+
+	abs, err := filepath.Abs(joined)
+	if err != nil {
+		return "", err
+	}
+
+	if abs != base && !strings.HasPrefix(abs, base+string(filepath.Separator)) {
+		return "", fmt.Errorf("path %q escapes base %q", abs, base)
+	}
+
+	return abs, nil
 }

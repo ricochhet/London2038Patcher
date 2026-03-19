@@ -2,7 +2,9 @@ package serverutil
 
 import (
 	"bytes"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
@@ -33,7 +35,12 @@ func (h *headerWriter) WriteHeader(code int) {
 }
 
 // newHeaderWriter sets the allowed headers, returning a new headerWriter.
-func newHeaderWriter(w http.ResponseWriter, data []byte, info configutil.Info) *headerWriter {
+func newHeaderWriter(
+	w http.ResponseWriter,
+	name string,
+	data []byte,
+	info configutil.Info,
+) *headerWriter {
 	allowed := make(map[string]struct{})
 	setContentType := false
 
@@ -48,8 +55,12 @@ func newHeaderWriter(w http.ResponseWriter, data []byte, info configutil.Info) *
 	}
 
 	if !setContentType {
-		if len(data) != 0 {
-			ct := http.DetectContentType(data)
+		ct := mime.TypeByExtension(filepath.Ext(name))
+		if ct == "" && len(data) != 0 {
+			ct = http.DetectContentType(data)
+		}
+
+		if ct != "" {
 			w.Header().Set("Content-Type", ct)
 		}
 
@@ -74,7 +85,7 @@ func WithLogging(next http.Handler) http.Handler {
 // ServeFileHandler creates a Handler for http.ServeFile.
 func ServeFileHandler(info configutil.Info, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(newHeaderWriter(w, nil, info), r, name)
+		http.ServeFile(newHeaderWriter(w, name, nil, info), r, name)
 	})
 }
 
@@ -82,7 +93,7 @@ func ServeFileHandler(info configutil.Info, name string) http.Handler {
 func ServeContentHandler(info configutil.Info, name string, data []byte) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.ServeContent(
-			newHeaderWriter(w, data, info),
+			newHeaderWriter(w, name, data, info),
 			r,
 			name,
 			time.Now(),

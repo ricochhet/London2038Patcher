@@ -9,7 +9,8 @@
                     "info": {
                         "statusCode": 0,
                         "headers": {}
-                    }
+                    },
+                    "browse": true
                 }
             ],
             "contentEntries": [
