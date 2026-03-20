@@ -76,7 +76,7 @@ export function applyI18n(cfg) {
         th.title = t("sort_click_title");
     }
 
-    const metaEl = document.getElementById("fs-dir-meta");
+    const metaEl = document.getElementById("slv-dir-meta");
     if (metaEl) {
         const n = cfg.fileCount;
         if (n > 0) {
@@ -90,7 +90,7 @@ export function applyI18n(cfg) {
 }
 
 export function buildLangSelector(onchange) {
-    const sel = document.getElementById("fs-lang-select");
+    const sel = document.getElementById("slv-lang-select");
     if (!sel) return;
 
     const locales = window.FS_LOCALES ?? { en: "English" };

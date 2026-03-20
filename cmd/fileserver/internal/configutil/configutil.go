@@ -30,6 +30,9 @@ type Server struct {
 	MaxAge           int      `json:"maxAge"`
 	Timeouts         Timeouts `json:"timeouts"`
 
+	BrowseRateLimit int `json:"browseRateLimit"`
+	FileRateLimit   int `json:"fileRateLimit"`
+
 	Hidden []string `json:"hidden"`
 
 	BasicAuth BasicAuth `json:"basicAuth"`

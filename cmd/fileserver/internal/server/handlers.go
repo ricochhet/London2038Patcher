@@ -6,13 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/ricochhet/london2038patcher/pkg/embedutil"
 )
 
 // NotFoundHandler is a middleware for 404 not found.
 func (c *Context) NotFoundHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(maybeRead(c.FS, "404.html"))
+	_, _ = w.Write(embedutil.MaybeRead(c.FS, "404.html"))
 }
 
 // SPANotFound returns a SPA-style fallback HandlerFunc.

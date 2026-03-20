@@ -25,8 +25,8 @@ export function parseQueryTags(raw) {
 }
 
 export function updateTagHint(parsed) {
-    const tagHint = document.getElementById("fs-tag-hint");
-    const input = document.getElementById("fs-search-input");
+    const tagHint = document.getElementById("slv-tag-hint");
+    const input = document.getElementById("slv-search-input");
     if (!tagHint) return;
 
     if (!parsed.ext) {
@@ -37,10 +37,10 @@ export function updateTagHint(parsed) {
 
     tagHint.style.display = "flex";
     tagHint.innerHTML =
-        `<span class="fs-tag-chip">${escHtml(t("ext_filter_label"))} <strong>${escHtml(parsed.ext)}</strong>`
-        + `<button class="fs-tag-remove" title="${escHtml(t("ext_filter_remove_title"))}">\xd7</button></span>`;
+        `<span class="slv-tag-chip">${escHtml(t("ext_filter_label"))} <strong>${escHtml(parsed.ext)}</strong>`
+        + `<button class="slv-tag-remove" title="${escHtml(t("ext_filter_remove_title"))}">\xd7</button></span>`;
 
-    tagHint.querySelector(".fs-tag-remove").addEventListener("click", () => {
+    tagHint.querySelector(".slv-tag-remove").addEventListener("click", () => {
         input.value = input.value
             .replace(/\b(?:ext|extension):\S*/gi, "")
             .replace(/\s+/g, " ")
@@ -51,9 +51,9 @@ export function updateTagHint(parsed) {
 }
 
 export function initSearch(route) {
-    const input = document.getElementById("fs-search-input");
-    const results = document.getElementById("fs-search-results");
-    const contentToggle = document.getElementById("fs-content-toggle");
+    const input = document.getElementById("slv-search-input");
+    const results = document.getElementById("slv-search-results");
+    const contentToggle = document.getElementById("slv-content-toggle");
 
     let activeIdx = -1;
     let contentSearch = false;
@@ -66,12 +66,12 @@ export function initSearch(route) {
     };
 
     const setActive = idx => {
-        const items = results.querySelectorAll(".fs-search-item");
-        items[activeIdx]?.classList.remove("fs-search-item-active");
+        const items = results.querySelectorAll(".slv-search-item");
+        items[activeIdx]?.classList.remove("slv-search-item-active");
         activeIdx = idx;
         const el = items[activeIdx];
         if (el) {
-            el.classList.add("fs-search-item-active");
+            el.classList.add("slv-search-item-active");
             el.scrollIntoView({ block: "nearest" });
         }
     };
@@ -91,18 +91,18 @@ export function initSearch(route) {
 
             if (!items?.length) {
                 const label = parsed.base || `*${parsed.ext ?? ""}`;
-                results.innerHTML = `<div class="fs-search-empty">${escHtml(t("search_no_results", { q: label }))}</div>`;
+                results.innerHTML = `<div class="slv-search-empty">${escHtml(t("search_no_results", { q: label }))}</div>`;
             } else {
                 results.innerHTML = items.map(item => {
                     const badge = item.matchType === "content"
-                        ? `<span class="fs-match-badge">${escHtml(t("match_in_file"))}</span>`
+                        ? `<span class="slv-match-badge">${escHtml(t("match_in_file"))}</span>`
                         : "";
                     const snippet = item.snippet
-                        ? `<span class="fs-search-snippet">${escHtml(item.snippet)}</span>`
+                        ? `<span class="slv-search-snippet">${escHtml(item.snippet)}</span>`
                         : "";
-                    return `<a class="fs-search-item" href="${escHtml(item.highlightURL)}">`
-                        + `<div class="fs-search-item-top"><span class="fs-search-item-name">${escHtml(item.name)}</span>${badge}</div>`
-                        + `<span class="fs-search-item-path">${escHtml(item.relPath)}</span>`
+                    return `<a class="slv-search-item" href="${escHtml(item.highlightUrl)}">`
+                        + `<div class="slv-search-item-top"><span class="slv-search-item-name">${escHtml(item.name)}</span>${badge}</div>`
+                        + `<span class="slv-search-item-path">${escHtml(item.relPath)}</span>`
                         + snippet
                         + `</a>`;
                 }).join("");
@@ -135,7 +135,7 @@ export function initSearch(route) {
     });
 
     input.addEventListener("keydown", e => {
-        const items = results.querySelectorAll(".fs-search-item");
+        const items = results.querySelectorAll(".slv-search-item");
         switch (e.key) {
             case "Escape":
                 closeResults();
@@ -163,7 +163,7 @@ export function initSearch(route) {
     });
 
     document.addEventListener("click", e => {
-        if (![input, results, contentToggle, document.getElementById("fs-tag-hint")]
+        if (![input, results, contentToggle, document.getElementById("slv-tag-hint")]
             .some(el => el?.contains(e.target))) {
             closeResults();
         }

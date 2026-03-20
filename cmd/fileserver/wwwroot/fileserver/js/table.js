@@ -33,9 +33,9 @@ export function sortedEntries(entries) {
 
 export function updateSortIndicators() {
     for (const th of document.querySelectorAll("th[data-sort]")) {
-        th.classList.remove("fs-sort-asc", "fs-sort-desc");
+        th.classList.remove("slv-sort-asc", "slv-sort-desc");
         if (th.dataset.sort === sortCol) {
-            th.classList.add(sortDir === "asc" ? "fs-sort-asc" : "fs-sort-desc");
+            th.classList.add(sortDir === "asc" ? "slv-sort-asc" : "slv-sort-desc");
         }
     }
 }
@@ -44,51 +44,51 @@ function makeRow(e, imageExts, textExts, onPreview) {
     const isPreviewable = imageExts[e.ext] || textExts[e.ext] || e.ext === ".pdf";
 
     const icon = Object.assign(document.createElement("span"), {
-        className: "fs-icon",
+        className: "slv-icon",
         textContent: e.isDir ? "\uD83D\uDCC1" : "\uD83D\uDCC4",
     });
 
     const link = Object.assign(document.createElement("a"), { textContent: e.name });
     if (e.isDir) {
-        link.href = e.browseURL;
+        link.href = e.browseUrl;
     } else {
-        link.href = e.downloadURL;
+        link.href = e.downloadUrl;
         if (isPreviewable) {
             link.addEventListener("click", ev => { ev.preventDefault(); onPreview(e); });
         }
     }
 
-    const nameDiv = Object.assign(document.createElement("div"), { className: "fs-name" });
+    const nameDiv = Object.assign(document.createElement("div"), { className: "slv-name" });
     nameDiv.append(icon, link);
 
     const td1 = document.createElement("td");
     td1.appendChild(nameDiv);
 
-    const td2 = Object.assign(document.createElement("td"), { className: "fs-meta", textContent: e.sizeStr });
-    const td3 = Object.assign(document.createElement("td"), { className: "fs-meta", textContent: e.modStr });
+    const td2 = Object.assign(document.createElement("td"), { className: "slv-meta", textContent: e.sizeStr });
+    const td3 = Object.assign(document.createElement("td"), { className: "slv-meta", textContent: e.modStr });
 
-    const actDiv = Object.assign(document.createElement("div"), { className: "fs-actions" });
+    const actDiv = Object.assign(document.createElement("div"), { className: "slv-actions" });
 
     const dlBtn = Object.assign(document.createElement("a"), {
-        className: "fs-btn",
-        href: e.downloadURL,
+        className: "slv-btn",
+        href: e.downloadUrl,
         textContent: e.isDir ? t("btn_zip") : t("btn_download"),
     });
     actDiv.appendChild(dlBtn);
 
     if (!e.isDir) {
         const infoBtn = Object.assign(document.createElement("a"), {
-            className: "fs-btn secondary",
-            href: e.infoURL,
+            className: "slv-btn secondary",
+            href: e.infoUrl,
             textContent: t("btn_info"),
         });
 
         const copyBtn = Object.assign(document.createElement("button"), {
-            className: "fs-btn secondary fs-copy-btn",
+            className: "slv-btn secondary slv-copy-btn",
             textContent: t("btn_copy_url"),
         });
         copyBtn.addEventListener("click", async () => {
-            const full = location.origin + e.downloadURL;
+            const full = location.origin + e.downloadUrl;
             const reset = () => { copyBtn.textContent = t("btn_copy_url"); };
             try {
                 await navigator.clipboard.writeText(full);
@@ -119,8 +119,8 @@ function makeRow(e, imageExts, textExts, onPreview) {
 }
 
 export function renderTable(entries, imageExts, textExts, hlName, onPreview) {
-    const tbody = document.getElementById("fs-tbody");
-    const parentRow = tbody.querySelector(".fs-parent");
+    const tbody = document.getElementById("slv-tbody");
+    const parentRow = tbody.querySelector(".slv-parent");
     tbody.innerHTML = "";
     if (parentRow) tbody.appendChild(parentRow);
 
@@ -129,10 +129,10 @@ export function renderTable(entries, imageExts, textExts, hlName, onPreview) {
     for (const e of sorted) {
         const tr = makeRow(e, imageExts, textExts, onPreview);
         if (hlName && e.name === hlName) {
-            tr.classList.add("fs-row-highlight");
+            tr.classList.add("slv-row-highlight");
             setTimeout(() => {
-                tr.classList.remove("fs-row-highlight");
-                tr.classList.add("fs-row-highlight-fade");
+                tr.classList.remove("slv-row-highlight");
+                tr.classList.add("slv-row-highlight-fade");
             }, 1500);
             setTimeout(() => tr.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
         }
@@ -141,7 +141,7 @@ export function renderTable(entries, imageExts, textExts, hlName, onPreview) {
 
     if (sorted.length === 0 && !parentRow) {
         const td = Object.assign(document.createElement("td"), {
-            className: "fs-empty",
+            className: "slv-empty",
             textContent: t("empty_dir"),
         });
         td.setAttribute("colspan", "4");

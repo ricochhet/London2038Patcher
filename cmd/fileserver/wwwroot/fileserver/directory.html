@@ -5,79 +5,78 @@
     <title>fileserver | {{.Title}}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="/css/base.css">
-    <link rel="stylesheet" href="/css/extra.css">
 </head>
 
 <body class="slv-ignore-darkreader">
     <h1>fileserver</h1>
 
-    <div class="fs-lang-wrap">
-        <select id="fs-lang-select" class="fs-lang-select" aria-label="Language"></select>
+    <div class="slv-lang-wrap">
+        <select id="slv-lang-select" class="slv-lang-select" aria-label="Language"></select>
     </div>
 
-    <div class="fs-header-row">
-        <div class="breadcrumb">
+    <div class="slv-header-row">
+        <div class="slv-breadcrumb">
             {{range .Breadcrumbs}}
             {{if .Link}}<a href="{{.Link}}">{{.Name}}</a>{{else}}<span class="current">{{.Name}}</span>{{end}}
             {{if not .IsLast}}<span class="sep">/</span>{{end}}
             {{end}}
-            {{if .HasReadme}}<a class="fs-readme-anchor" href="#readme-render"
+            {{if .HasReadme}}<a class="slv-readme-anchor" href="#slv-readme-render"
                 data-i18n="readme_link_text"
                 data-i18n-title="readme_link_title">README ↓</a>{{end}}
         </div>
-        <span id="fs-dir-meta" class="fs-dir-meta"></span>
+        <span id="slv-dir-meta" class="slv-dir-meta"></span>
     </div>
 
-    <div class="fs-search-wrap">
-        <div class="fs-search-bar">
-            <input class="fs-search-input" type="text" id="fs-search-input"
+    <div class="slv-search-wrap">
+        <div class="slv-search-bar">
+            <input class="slv-search-input" type="text" id="slv-search-input"
                 data-i18n-placeholder="search_placeholder"
                 placeholder="Search files…"
                 autocomplete="off" spellcheck="false">
-            <button class="fs-search-toggle" id="fs-content-toggle"
+            <button class="slv-search-toggle" id="slv-content-toggle"
                 data-i18n="search_in_files"
                 data-i18n-title="search_in_files_title"
                 title="Also search inside file contents">⊞ In files</button>
         </div>
-        <div id="fs-tag-hint" class="fs-tag-hint"></div>
-        <div class="fs-search-results" id="fs-search-results"></div>
+        <div id="slv-tag-hint" class="slv-tag-hint"></div>
+        <div class="slv-search-results" id="slv-search-results"></div>
     </div>
 
     <hr>
 
-    <table class="fs-table">
+    <table class="slv-table">
         <thead>
             <tr>
-                <th data-sort="name"     class="fs-th-sort" data-i18n="col_name">Name</th>
-                <th data-sort="size"     class="fs-th-sort" data-i18n="col_size">Size</th>
-                <th data-sort="modified" class="fs-th-sort" data-i18n="col_modified">Modified</th>
+                <th data-sort="name"     class="slv-th-sort" data-i18n="col_name">Name</th>
+                <th data-sort="size"     class="slv-th-sort" data-i18n="col_size">Size</th>
+                <th data-sort="modified" class="slv-th-sort" data-i18n="col_modified">Modified</th>
                 <th data-i18n="col_actions">Actions</th>
             </tr>
         </thead>
-        <tbody id="fs-tbody">
+        <tbody id="slv-tbody">
             {{if .Parent}}
-            <tr class="fs-parent">
-                <td><a href="{{.Parent}}" class="fs-name"><span class="fs-icon">↩</span><span>..</span></a></td>
-                <td class="fs-meta">—</td>
-                <td class="fs-meta">—</td>
+            <tr class="slv-parent">
+                <td><a href="{{.Parent}}" class="slv-name"><span class="slv-icon">↩</span><span>..</span></a></td>
+                <td class="slv-meta">—</td>
+                <td class="slv-meta">—</td>
                 <td></td>
             </tr>
             {{end}}
         </tbody>
     </table>
 
-    <div id="fs-preview-modal" class="fs-preview-modal">
-        <div class="fs-preview-backdrop" id="fs-preview-backdrop"></div>
-        <div class="fs-preview-panel">
-            <div class="fs-preview-header">
-                <span id="fs-preview-title" class="fs-preview-title"></span>
-                <div class="fs-preview-actions">
-                    <a id="fs-preview-dl" class="fs-btn secondary" href="#"
+    <div id="slv-preview-modal" class="slv-preview-modal">
+        <div class="slv-preview-backdrop" id="slv-preview-backdrop"></div>
+        <div class="slv-preview-panel">
+            <div class="slv-preview-header">
+                <span id="slv-preview-title" class="slv-preview-title"></span>
+                <div class="slv-preview-actions">
+                    <a id="slv-preview-dl" class="slv-btn secondary" href="#"
                         data-i18n="btn_download">Download</a>
-                    <button id="fs-preview-close" class="fs-btn secondary">✕</button>
+                    <button id="slv-preview-close" class="slv-btn secondary">✕</button>
                 </div>
             </div>
-            <div id="fs-preview-body" class="fs-preview-body"></div>
+            <div id="slv-preview-body" class="slv-preview-body"></div>
         </div>
     </div>
 
@@ -96,8 +95,8 @@
 
     {{if .Readme}}
     <hr>
-    <div id="readme-src" style="display:none">{{.Readme}}</div>
-    <div id="readme-render" class="readme"></div>
+    <div id="slv-readme-src" style="display:none">{{.Readme}}</div>
+    <div id="slv-readme-render" class="slv-readme"></div>
     <script src="/js/marked.min.js"></script>
     <script type="module" src="/js/readme.js"></script>
     {{end}}

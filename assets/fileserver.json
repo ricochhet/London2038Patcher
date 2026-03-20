@@ -42,15 +42,6 @@
                     }
                 },
                 {
-                    "route": "/css/extra.css",
-                    "name": "css/extra.css",
-                    "base64": "asset:css/extra.css",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
                     "route": "/js/marked.min.js",
                     "name": "js/marked.min.js",
                     "base64": "asset:js/marked.min.js",

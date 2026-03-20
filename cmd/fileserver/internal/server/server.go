@@ -16,6 +16,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/directory"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/hostsutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/serverutil"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
@@ -77,7 +78,6 @@ func (c *Context) StartServer() error {
 		r := chi.NewRouter()
 		r.Use(middleware.Recoverer)
 		r.Use(serverutil.WithLogging)
-		r.Use(httprate.LimitByIP(50, time.Minute))
 		r.Use(cors.Handler(cors.Options{
 			AllowedOrigins:   []string{"https://*", "http://*"},
 			AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -89,7 +89,12 @@ func (c *Context) StartServer() error {
 
 		if cfg.BasicAuth.User != "" && cfg.BasicAuth.Password != "" {
 			r.Use(withBasicAuth(cfg.BasicAuth.User, cfg.BasicAuth.Password))
-			logutil.Infof(logutil.Get(), "Port %d: basic auth enabled for user %q\n", cfg.Port, cfg.BasicAuth.User)
+			logutil.Infof(
+				logutil.Get(),
+				"Port %d: basic auth enabled for user %q\n",
+				cfg.Port,
+				cfg.BasicAuth.User,
+			)
 		}
 
 		r.NotFound(c.NotFoundHandler)
@@ -122,6 +127,7 @@ func withBasicAuth(user, password string) func(http.Handler) http.Handler {
 			if !ok || u != user || p != password {
 				w.Header().Set("WWW-Authenticate", `Basic realm="fileserver"`)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+
 				return
 			}
 
@@ -231,11 +237,24 @@ func (c *Context) maybeReadConfig(path string) (*configutil.Config, error) {
 
 // startServer starts an HTTP server with the specified server configuration.
 func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) error {
-	if err := c.serveFileHandler(ctx, cfg); err != nil {
+	browseRateLimit := 500
+	if cfg.BrowseRateLimit != 0 {
+		browseRateLimit = cfg.BrowseRateLimit
+	}
+
+	fileRateLimit := 100
+	if cfg.FileRateLimit != 0 {
+		fileRateLimit = cfg.FileRateLimit
+	}
+
+	browseLimit := httprate.LimitByIP(browseRateLimit, time.Minute)
+	fileLimit := httprate.LimitByIP(fileRateLimit, time.Minute)
+
+	if err := c.serveFileHandler(ctx, cfg, browseLimit, fileLimit); err != nil {
 		return errutil.New("serveFileHandler", err)
 	}
 
-	if err := c.serveContentHandler(ctx, cfg); err != nil {
+	if err := c.serveContentHandler(ctx, cfg, browseLimit); err != nil {
 		return errutil.New("c.serveContentHandler", err)
 	}
 
@@ -248,7 +267,11 @@ func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) e
 }
 
 // serveFileHandler handles the ServeFileHandler for each file entry.
-func (c *Context) serveFileHandler(ctx *serverutil.Context, cfg *configutil.Server) error {
+func (c *Context) serveFileHandler(
+	ctx *serverutil.Context,
+	cfg *configutil.Server,
+	browseLimit, fileLimit func(http.Handler) http.Handler,
+) error {
 	for _, f := range cfg.FileEntries {
 		info, err := os.Stat(f.Path)
 		if err != nil {
@@ -257,11 +280,11 @@ func (c *Context) serveFileHandler(ctx *serverutil.Context, cfg *configutil.Serv
 
 		if info.IsDir() && f.Browse != "" {
 			route := strings.TrimSuffix(f.Browse, "/")
-			handler := DirectoryBrowseHandler(
+			handler := directory.BrowseHandler(
 				c.FS, f.Path, route, cfg.Hidden,
 				cfg.ImageExts, cfg.TextExts, cfg.ReadmeCandidates,
 			)
-			handler = wrapBasicAuth(f.BasicAuth, handler)
+			handler = browseLimit(wrapBasicAuth(f.BasicAuth, handler))
 
 			logutil.Infof(logutil.Get(), "Port %d: %s/** -> %s (browse)\n", cfg.Port, route, f.Path)
 
@@ -270,14 +293,41 @@ func (c *Context) serveFileHandler(ctx *serverutil.Context, cfg *configutil.Serv
 		}
 
 		if info.IsDir() {
-			if err := matchPattern(f, ctx, cfg); err != nil {
+			if err := matchPattern(f, ctx, cfg, fileLimit); err != nil {
 				return errutil.New("matchPattern", err)
 			}
 		} else {
-			if err := matchFile(f, ctx, cfg); err != nil {
+			if err := matchFile(f, ctx, cfg, fileLimit); err != nil {
 				return errutil.New("matchFile", err)
 			}
 		}
+	}
+
+	return nil
+}
+
+// serveContentHandler handles the ServeContentHandler for each content entry.
+func (c *Context) serveContentHandler(
+	ctx *serverutil.Context,
+	cfg *configutil.Server,
+	limit func(http.Handler) http.Handler,
+) error {
+	for _, f := range cfg.ContentEntries {
+		logutil.Infof(
+			logutil.Get(),
+			"Port %d: %s -> %s (%d)\n",
+			cfg.Port,
+			f.Route,
+			f.Name,
+			len(f.Base64),
+		)
+
+		b, err := embedutil.MaybeBase64(c.FS, f.Base64)
+		if err != nil {
+			return errutil.WithFrame(err)
+		}
+
+		ctx.Handle(f.Route, limit(serverutil.ServeContentHandler(f.Info, f.Name, b)))
 	}
 
 	return nil
@@ -288,6 +338,7 @@ func matchPattern(
 	f configutil.FileEntry,
 	ctx *serverutil.Context,
 	cfg *configutil.Server,
+	fileLimit func(http.Handler) http.Handler,
 ) error {
 	return filepath.Walk(f.Path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -312,7 +363,7 @@ func matchPattern(
 
 		logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, route, abs)
 
-		handler := wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs))
+		handler := fileLimit(wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs)))
 		ctx.Handle(route, handler)
 
 		return nil
@@ -324,6 +375,7 @@ func matchFile(
 	f configutil.FileEntry,
 	ctx *serverutil.Context,
 	cfg *configutil.Server,
+	fileLimit func(http.Handler) http.Handler,
 ) error {
 	abs, err := filepath.Abs(f.Path)
 	if err != nil {
@@ -332,31 +384,8 @@ func matchFile(
 
 	logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, f.Route, abs)
 
-	handler := wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs))
+	handler := fileLimit(wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs)))
 	ctx.Handle(f.Route, handler)
-
-	return nil
-}
-
-// serveContentHandler handles the ServeContentHandler for each content entry.
-func (c *Context) serveContentHandler(ctx *serverutil.Context, cfg *configutil.Server) error {
-	for _, f := range cfg.ContentEntries {
-		logutil.Infof(
-			logutil.Get(),
-			"Port %d: %s -> %s (%d)\n",
-			cfg.Port,
-			f.Route,
-			f.Name,
-			len(f.Base64),
-		)
-
-		b, err := maybeBase64(c.FS, f.Base64)
-		if err != nil {
-			return errutil.WithFrame(err)
-		}
-
-		ctx.Handle(f.Route, serverutil.ServeContentHandler(f.Info, f.Name, b))
-	}
 
 	return nil
 }
