@@ -17,7 +17,7 @@
                 {
                     "route": "/",
                     "name": "index.html",
-                    "base64": "asset:index.html", 
+                    "base64": "asset:index.html",
                     "info": {
                         "statusCode": 0,
                         "headers": {}
@@ -54,6 +54,33 @@
                     "route": "/js/marked.min.js",
                     "name": "js/marked.min.js",
                     "base64": "asset:js/marked.min.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/directory.js",
+                    "name": "js/directory.js",
+                    "base64": "asset:js/directory.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/readme.js",
+                    "name": "js/readme.js",
+                    "base64": "asset:js/readme.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/locales/en.json",
+                    "name": "js/locales/en.json",
+                    "base64": "asset:js/locales/en.json",
                     "info": {
                         "statusCode": 0,
                         "headers": {}

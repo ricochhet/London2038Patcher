@@ -19,11 +19,24 @@ type Timeouts struct {
 	Idle       int `json:"idle"`
 }
 
+type BasicAuth struct {
+	User     string `json:"user"`
+	Password string `json:"password"`
+}
+
 type Server struct {
 	Port             int      `json:"port"`
 	AllowCredentials bool     `json:"allowCredentials"`
 	MaxAge           int      `json:"maxAge"`
 	Timeouts         Timeouts `json:"timeouts"`
+
+	Hidden []string `json:"hidden"`
+
+	BasicAuth BasicAuth `json:"basicAuth"`
+
+	ImageExts        []string `json:"imageExts"`
+	TextExts         []string `json:"textExts"`
+	ReadmeCandidates []string `json:"readmeCandidates"`
 
 	FileEntries    []FileEntry    `json:"fileEntries"`
 	ContentEntries []ContentEntry `json:"contentEntries"`
@@ -35,6 +48,8 @@ type FileEntry struct {
 	Browse string `json:"browse"`
 
 	Info Info `json:"info"`
+
+	BasicAuth BasicAuth `json:"basicAuth"`
 }
 
 type ContentEntry struct {

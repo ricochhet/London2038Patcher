@@ -24,6 +24,22 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/strutil"
 )
 
+const maxContentSearchSize = 10 << 20 // 10 MB
+
+var defaultImageExts = []string{
+	".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico",
+}
+
+var defaultTextExts = []string{
+	".txt", ".md", ".json", ".yaml", ".yml", ".toml", ".xml",
+	".html", ".htm", ".js", ".ts", ".css", ".go", ".py", ".rs",
+	".java", ".c", ".cpp", ".h", ".hpp", ".sh", ".bash", ".zsh",
+	".env", ".log", ".csv", ".ini", ".conf", ".cfg", ".rb", ".php",
+	".sql", ".tf", ".hcl", ".lua", ".vim", ".diff", ".patch",
+}
+
+var defaultReadmeCandidates = []string{"README.md", "INDEX.md", "index.md"}
+
 type fileInfoResponse struct {
 	Name        string    `json:"name"`
 	Path        string    `json:"path"`
@@ -41,6 +57,8 @@ type searchResult struct {
 	RelPath      string `json:"relPath"`
 	HighlightURL string `json:"highlightURL"`
 	DownloadURL  string `json:"downloadURL"`
+	MatchType    string `json:"matchType"`
+	Snippet      string `json:"snippet,omitempty"`
 }
 
 type breadcrumb struct {
@@ -50,13 +68,17 @@ type breadcrumb struct {
 }
 
 type dirEntry struct {
-	Name        string
-	IsDir       bool
-	SizeStr     string
-	ModStr      string
-	BrowseURL   string
-	DownloadURL string
-	InfoURL     string
+	Name        string `json:"name"`
+	IsDir       bool   `json:"isDir"`
+	SizeStr     string `json:"sizeStr"`
+	SizeBytes   int64  `json:"sizeBytes"`
+	ModStr      string `json:"modStr"`
+	ModUnix     int64  `json:"modUnix"`
+	BrowseURL   string `json:"browseURL"`
+	DownloadURL string `json:"downloadURL"`
+	InfoURL     string `json:"infoURL"`
+	PreviewURL  string `json:"previewURL"`
+	Ext         string `json:"ext"`
 }
 
 type dirTemplateData struct {
@@ -64,21 +86,65 @@ type dirTemplateData struct {
 	Breadcrumbs []breadcrumb
 	Parent      string
 	Entries     []dirEntry
+	EntriesJSON template.JS
 	IsEmpty     bool
 	Readme      string
+	HasReadme   bool
 	Route       string
+	FileCount   int
+	TotalSize   string
+
+	ImageExtsJSON template.JS
+	TextExtsJSON  template.JS
+}
+
+// extSliceToJSObject converts a slice of file extensions into a JSON object
+// literal suitable for direct injection into a <script> block, e.g.:
+//
+//	{".jpg":1,".png":1}
+//
+// This lets the browser use O(1) property lookups instead of Array.includes.
+func extSliceToJSObject(exts []string) template.JS {
+	m := make(map[string]int, len(exts))
+	for _, e := range exts {
+		m[e] = 1
+	}
+
+	b, err := json.Marshal(m)
+	if err != nil {
+		return template.JS("{}")
+	}
+
+	return template.JS(b)
 }
 
 // DirectoryBrowseHandler is a handler that supplies a file browser.
 func DirectoryBrowseHandler(
 	fs *embedutil.EmbeddedFileSystem,
-	path, route string,
+	dirPath, route string,
+	hidden []string,
+	imageExts, textExts, readmeCandidates []string,
 ) http.Handler {
 	route = strings.TrimSuffix(route, "/")
 
-	absBase, err := filepath.Abs(path)
+	if len(imageExts) == 0 {
+		imageExts = defaultImageExts
+	}
+
+	if len(textExts) == 0 {
+		textExts = defaultTextExts
+	}
+
+	if len(readmeCandidates) == 0 {
+		readmeCandidates = defaultReadmeCandidates
+	}
+
+	imageExtsJSON := extSliceToJSObject(imageExts)
+	textExtsJSON := extSliceToJSObject(textExts)
+
+	absBase, err := filepath.Abs(dirPath)
 	if err != nil {
-		panic(fmt.Sprintf("DirectoryBrowseHandler: cannot resolve basePath %q: %v", path, err))
+		panic(fmt.Sprintf("DirectoryBrowseHandler: cannot resolve basePath %q: %v", dirPath, err))
 	}
 
 	bytes := maybeRead(fs, "directory.html")
@@ -86,7 +152,7 @@ func DirectoryBrowseHandler(
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Has("search") {
-			handleSearch(w, absBase, route, r.URL.Query().Get("search"))
+			handleSearch(w, r, absBase, route, hidden)
 			return
 		}
 
@@ -110,12 +176,20 @@ func DirectoryBrowseHandler(
 		}
 
 		switch {
+		case r.URL.Query().Has("preview"):
+			handlePreview(w, r, abs, stat)
 		case r.URL.Query().Has("download"):
 			handleDownload(w, r, abs, stat)
 		case r.URL.Query().Has("info"):
 			handleInfo(w, r, abs, absBase, stat)
 		case stat.IsDir():
-			handleDirListing(w, r, tmpl, abs, route, filepath.ToSlash(sub), route)
+			handleDirListing(
+				w, r, tmpl,
+				abs, route, filepath.ToSlash(sub), route,
+				hidden,
+				imageExtsJSON, textExtsJSON,
+				readmeCandidates,
+			)
 		default:
 			http.ServeFile(w, r, abs)
 		}
@@ -129,26 +203,39 @@ func handleDirListing(
 	tmpl *template.Template,
 	absPath, route, subPath string,
 	browseRoute string,
+	hidden []string,
+	imageExtsJSON, textExtsJSON template.JS,
+	readmeCandidates []string,
 ) {
-	dirEntries, err := os.ReadDir(absPath)
+	rawEntries, err := os.ReadDir(absPath)
 	if err != nil {
 		http.Error(w, "Failed to read directory", http.StatusInternalServerError)
 		return
 	}
 
-	sort.Slice(dirEntries, func(i, j int) bool {
-		di, dj := dirEntries[i].IsDir(), dirEntries[j].IsDir()
+	filtered := rawEntries[:0]
+	for _, e := range rawEntries {
+		if !isHidden(e.Name(), hidden) {
+			filtered = append(filtered, e)
+		}
+	}
+
+	sort.Slice(filtered, func(i, j int) bool {
+		di, dj := filtered[i].IsDir(), filtered[j].IsDir()
 		if di != dj {
 			return di
 		}
 
-		return strings.ToLower(dirEntries[i].Name()) < strings.ToLower(dirEntries[j].Name())
+		return strings.ToLower(filtered[i].Name()) < strings.ToLower(filtered[j].Name())
 	})
 
 	trimmed := strings.Trim(subPath, "/")
 
-	entries := make([]dirEntry, 0, len(dirEntries))
-	for _, e := range dirEntries {
+	var totalBytes int64
+	fileCount := 0
+
+	entries := make([]dirEntry, 0, len(filtered))
+	for _, e := range filtered {
 		info, err := e.Info()
 		if err != nil {
 			continue
@@ -162,23 +249,42 @@ func handleDirListing(
 		}
 
 		sizeStr := "—"
+		var sizeBytes int64
 		if !e.IsDir() {
-			sizeStr = strutil.Size(info.Size())
+			sizeBytes = info.Size()
+			sizeStr = strutil.Size(sizeBytes)
+			totalBytes += sizeBytes
+			fileCount++
+		}
+
+		ext := ""
+		previewURL := ""
+		if !e.IsDir() {
+			ext = strings.ToLower(filepath.Ext(e.Name()))
+			previewURL = entryURL + "?preview"
 		}
 
 		entries = append(entries, dirEntry{
 			Name:        e.Name(),
 			IsDir:       e.IsDir(),
 			SizeStr:     sizeStr,
+			SizeBytes:   sizeBytes,
 			ModStr:      info.ModTime().Format("2006-01-02  15:04"),
+			ModUnix:     info.ModTime().Unix(),
 			BrowseURL:   entryURL,
 			DownloadURL: entryURL + "?download",
 			InfoURL:     entryURL + "?info",
+			PreviewURL:  previewURL,
+			Ext:         ext,
 		})
 	}
 
-	parent := ""
+	entriesRaw, err := json.Marshal(entries)
+	if err != nil {
+		entriesRaw = []byte("[]")
+	}
 
+	parent := ""
 	if trimmed != "" {
 		up := path.Dir("/" + trimmed)
 		if up == "/" {
@@ -193,19 +299,33 @@ func handleDirListing(
 		title = trimmed
 	}
 
-	readme := ""
-	if b, err := os.ReadFile(filepath.Join(absPath, "README.md")); err == nil {
-		readme = string(b)
+	readmeContent := ""
+	for _, candidate := range readmeCandidates {
+		if b, err := os.ReadFile(filepath.Join(absPath, candidate)); err == nil {
+			readmeContent = string(b)
+			break
+		}
+	}
+
+	totalSizeStr := ""
+	if fileCount > 0 {
+		totalSizeStr = strutil.Size(totalBytes)
 	}
 
 	data := dirTemplateData{
-		Title:       title,
-		Breadcrumbs: buildBreadcrumbs(route, trimmed),
-		Parent:      parent,
-		Entries:     entries,
-		IsEmpty:     len(entries) == 0,
-		Readme:      readme,
-		Route:       browseRoute,
+		Title:         title,
+		Breadcrumbs:   buildBreadcrumbs(route, trimmed),
+		Parent:        parent,
+		Entries:       entries,
+		EntriesJSON:   template.JS(entriesRaw),
+		IsEmpty:       len(entries) == 0,
+		Readme:        readmeContent,
+		HasReadme:     readmeContent != "",
+		Route:         browseRoute,
+		FileCount:     fileCount,
+		TotalSize:     totalSizeStr,
+		ImageExtsJSON: imageExtsJSON,
+		TextExtsJSON:  textExtsJSON,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -239,6 +359,17 @@ func buildBreadcrumbs(route, path string) []breadcrumb {
 	}
 
 	return crumbs
+}
+
+// handlePreview serves a file with Content-Disposition: inline so the browser can display it.
+func handlePreview(w http.ResponseWriter, r *http.Request, abs string, stat os.FileInfo) {
+	if stat.IsDir() {
+		http.Error(w, "Cannot preview a directory", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename=%q`, stat.Name()))
+	http.ServeFile(w, r, abs)
 }
 
 // handleDownload handles downloading of files and directories.
@@ -314,16 +445,16 @@ func handleDownload(w http.ResponseWriter, r *http.Request, root string, stat os
 func handleInfo(
 	w http.ResponseWriter,
 	_ *http.Request,
-	path, base string,
+	filePath, base string,
 	stat os.FileInfo,
 ) {
-	rel, _ := filepath.Rel(base, path)
+	rel, _ := filepath.Rel(base, filePath)
 	rel = filepath.ToSlash(rel)
 
 	res := fileInfoResponse{
 		Name:        stat.Name(),
 		Path:        "/" + rel,
-		FullPath:    path,
+		FullPath:    filePath,
 		Size:        stat.Size(),
 		Modified:    stat.ModTime().UTC(),
 		IsDirectory: stat.IsDir(),
@@ -334,8 +465,8 @@ func handleInfo(
 		res.Extension = ext
 		res.MimeType = mime.TypeByExtension(ext)
 
-		if hash, err := cryptoutil.MD5(path); err != nil {
-			logutil.Errorf(logutil.Get(), "handleInfo md5 %q: %v\n", path, err)
+		if hash, err := cryptoutil.MD5(filePath); err != nil {
+			logutil.Errorf(logutil.Get(), "handleInfo md5 %q: %v\n", filePath, err)
 		} else {
 			res.MD5 = hash
 		}
@@ -351,27 +482,49 @@ func handleInfo(
 	}
 }
 
-// handleSearch walks abs and returns JSON results matching the query.
-func handleSearch(w http.ResponseWriter, abs, route, query string) {
-	var results []searchResult
+// handleSearch walks abs and returns JSON results matching the search query.
+//   - ?search=q              — filename match
+//   - ?search=q&content=1    — also search inside file contents (text files ≤ 10 MB)
+//   - ext:dat or ext:.dat    — restrict results to files with that extension
+//   - extension:dat          — alias for ext:
+func handleSearch(w http.ResponseWriter, r *http.Request, abs, route string, hidden []string) {
+	raw := strings.TrimSpace(r.URL.Query().Get("search"))
+	contentSearch := r.URL.Query().Has("content")
 
-	query = strings.ToLower(strings.TrimSpace(query))
+	baseQuery, extFilter := parseSearchQuery(raw)
+
+	var results []searchResult
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-	if query == "" {
+	if baseQuery == "" && extFilter == "" {
 		_ = json.NewEncoder(w).Encode(results)
 		return
 	}
 
 	_ = filepath.Walk(abs, func(walkPath string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
+		if err != nil {
 			return err
 		}
 
-		if !strings.Contains(strings.ToLower(info.Name()), query) {
+		if isHidden(info.Name(), hidden) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+
 			return nil
 		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(info.Name()))
+		if extFilter != "" && ext != extFilter {
+			return nil
+		}
+
+		nameMatch := baseQuery == "" || strings.Contains(strings.ToLower(info.Name()), baseQuery)
 
 		rel, err := filepath.Rel(abs, walkPath)
 		if err != nil {
@@ -388,12 +541,30 @@ func handleSearch(w http.ResponseWriter, abs, route, query string) {
 			dirURL = route + "/" + dir
 		}
 
-		results = append(results, searchResult{
-			Name:         info.Name(),
-			RelPath:      rel,
-			HighlightURL: dirURL + "?highlight=" + url.QueryEscape(info.Name()),
-			DownloadURL:  route + "/" + rel + "?download",
-		})
+		if nameMatch {
+			results = append(results, searchResult{
+				Name:         info.Name(),
+				RelPath:      rel,
+				HighlightURL: dirURL + "?highlight=" + url.QueryEscape(info.Name()),
+				DownloadURL:  route + "/" + rel + "?download",
+				MatchType:    "name",
+			})
+
+			return nil
+		}
+
+		if contentSearch && baseQuery != "" {
+			if snippet, ok := searchFileContent(walkPath, info, baseQuery); ok {
+				results = append(results, searchResult{
+					Name:         info.Name(),
+					RelPath:      rel,
+					HighlightURL: dirURL + "?highlight=" + url.QueryEscape(info.Name()),
+					DownloadURL:  route + "/" + rel + "?download",
+					MatchType:    "content",
+					Snippet:      snippet,
+				})
+			}
+		}
 
 		return nil
 	})
@@ -401,4 +572,97 @@ func handleSearch(w http.ResponseWriter, abs, route, query string) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(results)
+}
+
+// searchFileContent checks whether query appears inside the given file.
+func searchFileContent(filePath string, info os.FileInfo, query string) (string, bool) {
+	if info.Size() > maxContentSearchSize {
+		return "", false
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", false
+	}
+
+	ct := http.DetectContentType(data)
+	if !strings.HasPrefix(ct, "text/") &&
+		!strings.Contains(ct, "json") &&
+		!strings.Contains(ct, "xml") {
+		return "", false
+	}
+
+	lower := strings.ToLower(string(data))
+	idx := strings.Index(lower, query)
+	if idx < 0 {
+		return "", false
+	}
+
+	start := idx - 60
+	if start < 0 {
+		start = 0
+	}
+
+	end := idx + len(query) + 60
+	if end > len(data) {
+		end = len(data)
+	}
+
+	snippet := "…" + strings.TrimSpace(string(data[start:end])) + "…"
+
+	return snippet, true
+}
+
+// parseSearchQuery splits a raw search string into a base query and an optional
+// extension filter. Tokens of the form "ext:VALUE" or "extension:VALUE" (case-
+// insensitive) are extracted as an extension filter; all remaining tokens form
+// the base query. The extension is normalised so that both "dat" and ".dat"
+// resolve to ".dat".
+//
+// Bare words "ext" or "extension" without a trailing colon are left in the
+// base query unchanged, so you can still search for files containing those words.
+func parseSearchQuery(raw string) (baseQuery, extFilter string) {
+	tokens := strings.Fields(raw)
+	rest := tokens[:0]
+
+	for _, t := range tokens {
+		lower := strings.ToLower(t)
+
+		var val string
+		var isTag bool
+
+		if after, ok := strings.CutPrefix(lower, "extension:"); ok && after != "" {
+			val, isTag = after, true
+		} else if after, ok := strings.CutPrefix(lower, "ext:"); ok && after != "" {
+			val, isTag = after, true
+		}
+
+		if isTag {
+			if !strings.HasPrefix(val, ".") {
+				val = "." + val
+			}
+
+			extFilter = val
+
+			continue
+		}
+
+		rest = append(rest, t)
+	}
+
+	baseQuery = strings.ToLower(strings.Join(rest, " "))
+
+	return baseQuery, extFilter
+}
+
+// isHidden reports whether name matches any of the given glob patterns.
+func isHidden(name string, patterns []string) bool {
+	for _, p := range patterns {
+		matched, err := filepath.Match(p, name)
+		if err == nil && matched {
+			return true
+		}
+	}
+
+	return false
 }

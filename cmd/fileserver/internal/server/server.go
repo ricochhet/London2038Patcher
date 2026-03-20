@@ -87,6 +87,11 @@ func (c *Context) StartServer() error {
 			MaxAge:           maxAge,
 		}))
 
+		if cfg.BasicAuth.User != "" && cfg.BasicAuth.Password != "" {
+			r.Use(withBasicAuth(cfg.BasicAuth.User, cfg.BasicAuth.Password))
+			logutil.Infof(logutil.Get(), "Port %d: basic auth enabled for user %q\n", cfg.Port, cfg.BasicAuth.User)
+		}
+
 		r.NotFound(c.NotFoundHandler)
 
 		ctx.SetLocked(&serverutil.HTTPServer{
@@ -107,6 +112,31 @@ func (c *Context) StartServer() error {
 	c.shutdown()
 
 	return nil
+}
+
+// withBasicAuth returns a chi middleware that enforces HTTP Basic Authentication.
+func withBasicAuth(user, password string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			u, p, ok := r.BasicAuth()
+			if !ok || u != user || p != password {
+				w.Header().Set("WWW-Authenticate", `Basic realm="fileserver"`)
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// wrapBasicAuth wraps a single handler with Basic Auth when credentials are non-empty.
+func wrapBasicAuth(auth configutil.BasicAuth, h http.Handler) http.Handler {
+	if auth.User == "" || auth.Password == "" {
+		return h
+	}
+
+	return withBasicAuth(auth.User, auth.Password)(h)
 }
 
 // shutdown handles shutdown of all servers.
@@ -227,7 +257,11 @@ func (c *Context) serveFileHandler(ctx *serverutil.Context, cfg *configutil.Serv
 
 		if info.IsDir() && f.Browse != "" {
 			route := strings.TrimSuffix(f.Browse, "/")
-			handler := DirectoryBrowseHandler(c.FS, f.Path, route)
+			handler := DirectoryBrowseHandler(
+				c.FS, f.Path, route, cfg.Hidden,
+				cfg.ImageExts, cfg.TextExts, cfg.ReadmeCandidates,
+			)
+			handler = wrapBasicAuth(f.BasicAuth, handler)
 
 			logutil.Infof(logutil.Get(), "Port %d: %s/** -> %s (browse)\n", cfg.Port, route, f.Path)
 
@@ -277,7 +311,9 @@ func matchPattern(
 		route := filepath.ToSlash(filepath.Join(f.Route, rel))
 
 		logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, route, abs)
-		ctx.Handle(route, serverutil.ServeFileHandler(f.Info, abs))
+
+		handler := wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs))
+		ctx.Handle(route, handler)
 
 		return nil
 	})
@@ -295,7 +331,9 @@ func matchFile(
 	}
 
 	logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, f.Route, abs)
-	ctx.Handle(f.Route, serverutil.ServeFileHandler(f.Info, abs))
+
+	handler := wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs))
+	ctx.Handle(f.Route, handler)
 
 	return nil
 }
