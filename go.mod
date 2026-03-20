@@ -12,7 +12,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-colorable v0.1.14
 	github.com/sasha-s/go-deadlock v0.3.6
-	github.com/tidwall/jsonc v0.3.2
+	github.com/tidwall/jsonc v0.3.3
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
 )
 
