@@ -92,14 +92,14 @@
             totalSize: {{.TotalSize | printf "%q"}}
         };
     </script>
-    <script src="/js/directory.js"></script>
+    <script type="module" src="/js/directory.js"></script>
 
     {{if .Readme}}
     <hr>
     <div id="readme-src" style="display:none">{{.Readme}}</div>
     <div id="readme-render" class="readme"></div>
     <script src="/js/marked.min.js"></script>
-    <script src="/js/readme.js"></script>
+    <script type="module" src="/js/readme.js"></script>
     {{end}}
 
 </body>

@@ -1,10 +1,6 @@
-(function () {
-    "use strict";
+const src = document.getElementById("readme-src");
+const render = document.getElementById("readme-render");
 
-    var src = document.getElementById("readme-src");
-    var render = document.getElementById("readme-render");
-
-    if (src && render && typeof marked !== "undefined") {
-        render.innerHTML = marked.parse(src.textContent);
-    }
-})();
+if (src && render && typeof marked !== "undefined") {
+    render.innerHTML = marked.parse(src.textContent);
+}

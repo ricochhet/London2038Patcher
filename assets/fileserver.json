@@ -69,6 +69,42 @@
                     }
                 },
                 {
+                    "route": "/js/i18n.js",
+                    "name": "js/i18n.js",
+                    "base64": "asset:js/i18n.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/table.js",
+                    "name": "js/table.js",
+                    "base64": "asset:js/table.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/search.js",
+                    "name": "js/search.js",
+                    "base64": "asset:js/search.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/preview.js",
+                    "name": "js/preview.js",
+                    "base64": "asset:js/preview.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
                     "route": "/js/readme.js",
                     "name": "js/readme.js",
                     "base64": "asset:js/readme.js",
