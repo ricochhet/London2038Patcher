@@ -20,8 +20,15 @@ type Timeouts struct {
 }
 
 type BasicAuth struct {
-	User     string `json:"user"`
+	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type FormAuth struct {
+	Username       string   `json:"username"`
+	Password       string   `json:"password"`
+	Secret         string   `json:"secret"`
+	PublicPrefixes []string `json:"publicPrefixes"`
 }
 
 type Server struct {
@@ -36,6 +43,7 @@ type Server struct {
 	Hidden []string `json:"hidden"`
 
 	BasicAuth BasicAuth `json:"basicAuth"`
+	FormAuth  FormAuth  `json:"formAuth"`
 
 	ImageExts        []string `json:"imageExts"`
 	TextExts         []string `json:"textExts"`

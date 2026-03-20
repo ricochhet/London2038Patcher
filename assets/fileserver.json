@@ -2,6 +2,15 @@
     "servers": [
         {
             "port": 8080,
+            "formAuth": {
+                "username": "username",
+                "password": "password",
+                "secret": "",
+                "publicPrefixes": [
+                    "/css/",
+                    "/js/"
+                ]
+            },
             "fileEntries": [
                 {
                     "route": "/patcher",
@@ -63,6 +72,15 @@
                     "route": "/js/i18n.js",
                     "name": "js/i18n.js",
                     "base64": "asset:js/i18n.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/lang.js",
+                    "name": "js/lang.js",
+                    "base64": "asset:js/lang.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}

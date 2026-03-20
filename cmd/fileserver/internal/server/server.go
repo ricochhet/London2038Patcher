@@ -87,16 +87,6 @@ func (c *Context) StartServer() error {
 			MaxAge:           maxAge,
 		}))
 
-		if cfg.BasicAuth.User != "" && cfg.BasicAuth.Password != "" {
-			r.Use(withBasicAuth(cfg.BasicAuth.User, cfg.BasicAuth.Password))
-			logutil.Infof(
-				logutil.Get(),
-				"Port %d: basic auth enabled for user %q\n",
-				cfg.Port,
-				cfg.BasicAuth.User,
-			)
-		}
-
 		r.NotFound(c.NotFoundHandler)
 
 		ctx.SetLocked(&serverutil.HTTPServer{
@@ -104,6 +94,26 @@ func (c *Context) StartServer() error {
 			TLS:      c.TLS,
 			Timeouts: &cfg.Timeouts,
 		})
+
+		if cfg.FormAuth.Username != "" && cfg.FormAuth.Password != "" {
+			secret := resolveFormAuthSecret(cfg.FormAuth.Secret)
+			r.Use(withFormAuth(secret, cfg.FormAuth.PublicPrefixes))
+			c.registerAuthRoutes(ctx.Handle, cfg.FormAuth.Username, cfg.FormAuth.Password, secret)
+			logutil.Infof(
+				logutil.Get(),
+				"Port %d: form auth enabled for user %q\n",
+				cfg.Port,
+				cfg.FormAuth.Username,
+			)
+		} else if cfg.BasicAuth.Username != "" && cfg.BasicAuth.Password != "" {
+			r.Use(withBasicAuth(cfg.BasicAuth.Username, cfg.BasicAuth.Password))
+			logutil.Infof(
+				logutil.Get(),
+				"Port %d: basic auth enabled for user %q\n",
+				cfg.Port,
+				cfg.BasicAuth.Username,
+			)
+		}
 
 		if err := c.startServer(ctx, &cfg); err != nil {
 			return errutil.New("c.startServer", err)
@@ -138,11 +148,11 @@ func withBasicAuth(user, password string) func(http.Handler) http.Handler {
 
 // wrapBasicAuth wraps a single handler with Basic Auth when credentials are non-empty.
 func wrapBasicAuth(auth configutil.BasicAuth, h http.Handler) http.Handler {
-	if auth.User == "" || auth.Password == "" {
+	if auth.Username == "" || auth.Password == "" {
 		return h
 	}
 
-	return withBasicAuth(auth.User, auth.Password)(h)
+	return withBasicAuth(auth.Username, auth.Password)(h)
 }
 
 // shutdown handles shutdown of all servers.

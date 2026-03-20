@@ -1,6 +1,6 @@
 import {
     t, detectLang, loadLocale, setStrings,
-    applyI18n, buildLangSelector,
+    applyI18n, buildLangSelector, whenReady,
 } from "./i18n.js";
 import { renderTable, initSortHeaders } from "./table.js";
 import { initSearch, parseQueryTags, updateTagHint } from "./search.js";
@@ -23,25 +23,28 @@ const params = new URLSearchParams(window.location.search);
 const hlName = params.get("highlight") ?? null;
 const savedQ = sessionStorage.getItem(`fs_q_${location.pathname}`);
 
-render(hlName);
-applyI18n(CFG);
-buildLangSelector(async lang => {
-    localStorage.setItem("fs_lang", lang);
-    const data = await loadLocale(lang);
-    setStrings(data);
+await whenReady(() => {
+    render(hlName);
     applyI18n(CFG);
-    render(null);
-});
 
-if (savedQ) updateTagHint(parseQueryTags(savedQ));
-
-const initialLang = detectLang();
-if (initialLang !== "en") {
-    loadLocale(initialLang).then(data => {
-        if (Object.keys(data).length) {
-            setStrings(data);
-            applyI18n(CFG);
-            render(hlName);
-        }
+    buildLangSelector(async lang => {
+        localStorage.setItem("fs_lang", lang);
+        const data = await loadLocale(lang);
+        setStrings(data);
+        applyI18n(CFG);
+        render(null);
     });
-}
+
+    if (savedQ) updateTagHint(parseQueryTags(savedQ));
+
+    const initialLang = detectLang();
+    if (initialLang !== "en") {
+        loadLocale(initialLang).then(data => {
+            if (Object.keys(data).length) {
+                setStrings(data);
+                applyI18n(CFG);
+                render(hlName);
+            }
+        });
+    }
+});

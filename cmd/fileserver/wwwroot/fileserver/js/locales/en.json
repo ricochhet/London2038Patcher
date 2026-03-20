@@ -25,5 +25,15 @@
     "readme_link_title": "Jump to README",
     "files_count_one": "{n} file",
     "files_count_many": "{n} files",
-    "lang_label": "Language"
+    "lang_label": "Language",
+    "browse_heading": "fileserver",
+    "not_found_heading": "404",
+    "not_found_body": "Not Found.",
+    "index_heading": "fileserver",
+    "index_body": "Hello, World.",
+    "login_heading": "fileserver",
+    "login_subtitle": "sign in to continue.",
+    "login_username_label": "username",
+    "login_password_label": "password",
+    "login_submit": "sign in \u2192"
 }

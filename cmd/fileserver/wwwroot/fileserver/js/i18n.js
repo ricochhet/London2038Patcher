@@ -1,37 +1,18 @@
 const LOCALE_BASE = "/js/locales/";
 
-const FALLBACK = {
-    col_name: "Name",
-    col_size: "Size",
-    col_modified: "Modified",
-    col_actions: "Actions",
-    empty_dir: "This directory is empty.",
-    btn_zip: "ZIP",
-    btn_download: "Download",
-    btn_info: "Info",
-    btn_copy_url: "Copy URL",
-    btn_copied: "Copied!",
-    search_placeholder: "Search files\u2026 (press / to focus, e.g. config ext:json)",
-    search_in_files: "\u229e In files",
-    search_in_files_title: "Also search inside file contents",
-    search_no_results: "No results for \u201c{q}\u201d",
-    ext_filter_label: "ext filter:",
-    ext_filter_remove_title: "Remove filter",
-    sort_click_title: "Click to sort",
-    match_in_file: "in file",
-    preview_loading: "Loading\u2026",
-    preview_failed: "Failed to load file.",
-    readme_link_text: "README \u2193",
-    readme_link_title: "Jump to README",
-    files_count_one: "{n} file",
-    files_count_many: "{n} files",
-    lang_label: "Language",
-};
+let fallback = {};
+let strings = {};
 
-let strings = { ...FALLBACK };
+const ready = fetch(`${LOCALE_BASE}en.json`)
+    .then(r => r.ok ? r.json() : {})
+    .catch(() => ({}))
+    .then(data => {
+        fallback = data;
+        strings = { ...data };
+    });
 
 export function t(key, vars) {
-    let s = strings[key] ?? FALLBACK[key] ?? key;
+    let s = strings[key] ?? fallback[key] ?? key;
     if (vars) {
         for (const [k, v] of Object.entries(vars)) {
             s = s.replaceAll(`{${k}}`, v);
@@ -49,6 +30,7 @@ export function detectLang() {
 }
 
 export async function loadLocale(lang) {
+    if (lang === "en") return fallback;
     try {
         const r = await fetch(`${LOCALE_BASE}${lang}.json`);
         if (!r.ok) throw new Error("not found");
@@ -59,7 +41,12 @@ export async function loadLocale(lang) {
 }
 
 export function setStrings(data) {
-    strings = Object.keys(data).length ? data : { ...FALLBACK };
+    strings = Object.keys(data).length ? { ...fallback, ...data } : { ...fallback };
+}
+
+export async function whenReady(fn) {
+    await ready;
+    fn();
 }
 
 export function applyI18n(cfg) {

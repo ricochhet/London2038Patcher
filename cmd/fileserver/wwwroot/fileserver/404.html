@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 
 <head>
@@ -7,6 +8,14 @@
 </head>
 
 <body class="slv-ignore-darkreader">
-    <h1>404</h1>
-    <p>Not Found.</p>
+    <div class="slv-lang-wrap">
+        <select id="slv-lang-select" class="slv-lang-select" aria-label="Language"></select>
+    </div>
+
+    <h1 data-i18n="not_found_heading">404</h1>
+    <p data-i18n="not_found_body">Not Found.</p>
+
+    <script type="module" src="/js/lang.js"></script>
+</body>
+
 </html>
