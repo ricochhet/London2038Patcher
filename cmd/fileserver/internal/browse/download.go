@@ -1,4 +1,4 @@
-package directory
+package browse
 
 import (
 	"archive/zip"

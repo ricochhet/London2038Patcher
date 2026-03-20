@@ -51,9 +51,9 @@
                     }
                 },
                 {
-                    "route": "/js/directory.js",
-                    "name": "js/directory.js",
-                    "base64": "asset:js/directory.js",
+                    "route": "/js/browse.js",
+                    "name": "js/browse.js",
+                    "base64": "asset:js/browse.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}

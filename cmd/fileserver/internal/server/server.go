@@ -15,8 +15,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/browse"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
-	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/directory"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/hostsutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/serverutil"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
@@ -280,7 +280,7 @@ func (c *Context) serveFileHandler(
 
 		if info.IsDir() && f.Browse != "" {
 			route := strings.TrimSuffix(f.Browse, "/")
-			handler := directory.BrowseHandler(
+			handler := browse.Handler(
 				c.FS, f.Path, route, cfg.Hidden,
 				cfg.ImageExts, cfg.TextExts, cfg.ReadmeCandidates,
 			)

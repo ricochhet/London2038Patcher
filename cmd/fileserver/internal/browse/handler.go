@@ -1,4 +1,4 @@
-package directory
+package browse
 
 import (
 	"fmt"
@@ -88,8 +88,8 @@ type dirTemplateData struct {
 	TextExtsJSON  template.JS
 }
 
-// BrowseHandler is a handler that supplies a file browser.
-func BrowseHandler(
+// Handler is a handler that supplies a file browser.
+func Handler(
 	fs *embedutil.EmbeddedFileSystem,
 	dirPath, route string,
 	hidden []string,
@@ -114,10 +114,10 @@ func BrowseHandler(
 
 	absBase, err := filepath.Abs(dirPath)
 	if err != nil {
-		panic(fmt.Sprintf("DirectoryBrowseHandler: cannot resolve basePath %q: %v", dirPath, err))
+		panic(fmt.Sprintf("BrowseHandler: cannot resolve basePath %q: %v", dirPath, err))
 	}
 
-	bytes := embedutil.MaybeRead(fs, "directory.html")
+	bytes := embedutil.MaybeRead(fs, "browse.html")
 	tmpl := template.Must(template.New("dir").Parse(string(bytes)))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
