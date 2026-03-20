@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/ricochhet/london2038patcher/pkg/cryptoutil"
+	"github.com/ricochhet/london2038patcher/pkg/httputil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
@@ -42,7 +43,7 @@ func handleInfo(
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	httputil.ContentType(w, httputil.ContentTypeJSON)
 
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")

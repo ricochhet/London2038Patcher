@@ -136,7 +136,7 @@ func withBasicAuth(user, password string) func(http.Handler) http.Handler {
 			u, p, ok := r.BasicAuth()
 			if !ok || u != user || p != password {
 				w.Header().Set("WWW-Authenticate", `Basic realm="fileserver"`)
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				errutil.HTTPUnauthorized(w)
 
 				return
 			}
@@ -261,7 +261,7 @@ func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) e
 	fileLimit := httprate.LimitByIP(fileRateLimit, time.Minute)
 
 	if err := c.serveFileHandler(ctx, cfg, browseLimit, fileLimit); err != nil {
-		return errutil.New("serveFileHandler", err)
+		return errutil.New("c.serveFileHandler", err)
 	}
 
 	if err := c.serveContentHandler(ctx, cfg, browseLimit); err != nil {
@@ -292,7 +292,7 @@ func (c *Context) serveFileHandler(
 			route := strings.TrimSuffix(f.Browse, "/")
 			handler := browse.Handler(
 				c.FS, f.Path, route, cfg.Hidden,
-				cfg.ImageExts, cfg.TextExts, cfg.ReadmeCandidates,
+				cfg,
 			)
 			handler = browseLimit(wrapBasicAuth(f.BasicAuth, handler))
 

@@ -10,11 +10,26 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
+	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
 )
 
-const maxContentSearchSize = 10 << 20 // 10 MB
+const (
+	maxContentSearchSize = 10 << 20 // 10 MB
+	searchQuery          = "search"
+	previewQuery         = "preview"
+	downloadQuery        = "download"
+	infoQuery            = "info"
+	highlightQuery       = "highlight"
+
+	nameQuery    = "name"
+	contentQuery = "content"
+
+	browseTmpl     = "browse"
+	browseTmplHTML = "browse.html"
+)
 
 var defaultImageExts = []string{
 	".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".ico",
@@ -57,7 +72,7 @@ type breadcrumb struct {
 	IsLast bool
 }
 
-type dirEntry struct {
+type entry struct {
 	Name        string `json:"name"`
 	IsDir       bool   `json:"isDir"`
 	SizeStr     string `json:"sizeStr"`
@@ -71,11 +86,11 @@ type dirEntry struct {
 	Ext         string `json:"ext"`
 }
 
-type dirTemplateData struct {
+type templateData struct {
 	Title       string
 	Breadcrumbs []breadcrumb
 	Parent      string
-	Entries     []dirEntry
+	Entries     []entry
 	EntriesJSON template.JS
 	IsEmpty     bool
 	Readme      string
@@ -91,39 +106,31 @@ type dirTemplateData struct {
 // Handler is a handler that supplies a file browser.
 func Handler(
 	fs *embedutil.EmbeddedFileSystem,
-	dirPath, route string,
+	path, route string,
 	hidden []string,
-	imageExts, textExts, readmeCandidates []string,
+	cfg *configutil.Server,
 ) http.Handler {
 	route = strings.TrimSuffix(route, "/")
 
-	if len(imageExts) == 0 {
-		imageExts = defaultImageExts
-	}
-
-	if len(textExts) == 0 {
-		textExts = defaultTextExts
-	}
-
-	if len(readmeCandidates) == 0 {
-		readmeCandidates = defaultReadmeCandidates
-	}
+	imageExts := maybeSlice(cfg.ImageExts, defaultImageExts)
+	textExts := maybeSlice(cfg.TextExts, defaultTextExts)
+	readmeCandidates := maybeSlice(cfg.ReadmeCandidates, defaultReadmeCandidates)
 
 	imageExtsJSON := extSliceToJSObject(imageExts)
 	textExtsJSON := extSliceToJSObject(textExts)
 
-	absBase, err := filepath.Abs(dirPath)
+	absBase, err := filepath.Abs(path)
 	if err != nil {
-		panic(fmt.Sprintf("BrowseHandler: cannot resolve basePath %q: %v", dirPath, err))
+		panic(fmt.Sprintf("BrowseHandler: cannot resolve basePath %q: %v", path, err))
 	}
 
-	bytes := embedutil.MaybeRead(fs, "browse.html")
-	tmpl := template.Must(template.New("dir").Parse(string(bytes)))
+	bytes := embedutil.MaybeRead(fs, browseTmplHTML)
+	tmpl := template.Must(template.New(browseTmpl).Parse(string(bytes)))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Has("search") {
+		if r.URL.Query().Has(searchQuery) {
 			if err := handleSearch(w, r, absBase, route, hidden); err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				errutil.HTTPInternalServerError(w)
 			}
 
 			return
@@ -133,7 +140,7 @@ func Handler(
 
 		abs, err := fsutil.SafeJoin(absBase, sub)
 		if err != nil {
-			http.Error(w, "Forbidden", http.StatusForbidden)
+			errutil.HTTPForbidden(w)
 			return
 		}
 
@@ -142,18 +149,18 @@ func Handler(
 			if os.IsNotExist(err) {
 				http.NotFound(w, r)
 			} else {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				errutil.HTTPInternalServerError(w)
 			}
 
 			return
 		}
 
 		switch {
-		case r.URL.Query().Has("preview"):
+		case r.URL.Query().Has(previewQuery):
 			handlePreview(w, r, abs, stat)
-		case r.URL.Query().Has("download"):
+		case r.URL.Query().Has(downloadQuery):
 			handleDownload(w, r, abs, stat)
-		case r.URL.Query().Has("info"):
+		case r.URL.Query().Has(infoQuery):
 			handleInfo(w, r, abs, absBase, stat)
 		case stat.IsDir():
 			handleListing(
@@ -167,4 +174,14 @@ func Handler(
 			http.ServeFile(w, r, abs)
 		}
 	})
+}
+
+// maybeSlice returns s if its length is not 0, otherwise returns fallback.
+func maybeSlice(s, fallback []string) []string {
+	exts := s
+	if len(exts) == 0 {
+		exts = fallback
+	}
+
+	return exts
 }

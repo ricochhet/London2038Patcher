@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
+	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/ricochhet/london2038patcher/pkg/httputil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
@@ -21,6 +23,13 @@ const (
 	sessionTTL        = 24 * time.Hour
 	loginRoute        = "/auth/login"
 	logoutRoute       = "/auth/logout"
+
+	nextQuery       = "next"
+	usernameFormKey = "username"
+	passwordFormKey = "password"
+
+	loginTmpl     = "login"
+	loginTmplHTML = "login.html"
 )
 
 type loginPageData struct {
@@ -121,7 +130,7 @@ func withFormAuth(secret []byte, publicPrefixes []string) func(http.Handler) htt
 			}
 
 			if !hasValidSession(r, secret) {
-				dest := loginRoute + "?next=" + url.QueryEscape(r.URL.RequestURI())
+				dest := loginRoute + "?" + nextQuery + "=" + url.QueryEscape(r.URL.RequestURI())
 				http.Redirect(w, r, dest, http.StatusFound)
 
 				return
@@ -153,11 +162,11 @@ func (c *Context) registerAuthRoutes(
 	user, password string,
 	secret []byte,
 ) {
-	bytes := embedutil.MaybeRead(c.FS, "login.html")
-	tmpl := template.Must(template.New("login").Parse(string(bytes)))
+	bytes := embedutil.MaybeRead(c.FS, loginTmplHTML)
+	tmpl := template.Must(template.New(loginTmpl).Parse(string(bytes)))
 
 	serveLoginPage := func(w http.ResponseWriter, errMsg, next string) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		httputil.ContentType(w, httputil.ContentTypeHTML)
 
 		if errMsg != "" {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -176,7 +185,7 @@ func (c *Context) registerAuthRoutes(
 				return
 			}
 
-			next := r.URL.Query().Get("next")
+			next := r.URL.Query().Get(nextQuery)
 			if next == "" {
 				next = "/"
 			}
@@ -185,14 +194,14 @@ func (c *Context) registerAuthRoutes(
 
 		case http.MethodPost:
 			if err := r.ParseForm(); err != nil {
-				http.Error(w, "Bad Request", http.StatusBadRequest)
+				errutil.HTTPBadRequest(w)
 				return
 			}
 
-			u := r.FormValue("username")
-			p := r.FormValue("password")
+			u := r.FormValue(usernameFormKey)
+			p := r.FormValue(passwordFormKey)
 
-			next := r.FormValue("next")
+			next := r.FormValue(nextQuery)
 			if next == "" || !strings.HasPrefix(next, "/") {
 				next = "/"
 			}

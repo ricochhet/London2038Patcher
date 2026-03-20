@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/ricochhet/london2038patcher/pkg/httputil"
 )
 
 // handleSearch walks abs and returns JSON results matching the search query.
@@ -24,14 +25,14 @@ func handleSearch(
 	abs, route string,
 	hidden []string,
 ) error {
-	raw := strings.TrimSpace(r.URL.Query().Get("search"))
-	contentSearch := r.URL.Query().Has("content")
+	raw := strings.TrimSpace(r.URL.Query().Get(searchQuery))
+	contentSearch := r.URL.Query().Has(contentQuery)
 
 	query, filter := parseSearchQuery(raw)
 
 	var results []searchResult
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	httputil.ContentType(w, httputil.ContentTypeJSON)
 
 	if query == "" && filter == "" {
 		return errutil.WithFrame(json.NewEncoder(w).Encode(results))
@@ -78,9 +79,9 @@ func handleSearch(
 			results = append(results, searchResult{
 				Name:         info.Name(),
 				RelPath:      rel,
-				HighlightURL: dirURL + "?highlight=" + url.QueryEscape(info.Name()),
-				DownloadURL:  route + "/" + rel + "?download",
-				MatchType:    "name",
+				HighlightURL: dirURL + "?" + highlightQuery + "=" + url.QueryEscape(info.Name()),
+				DownloadURL:  route + "/" + rel + "?" + downloadQuery,
+				MatchType:    nameQuery,
 			})
 
 			return nil
@@ -89,12 +90,14 @@ func handleSearch(
 		if contentSearch && query != "" {
 			if snippet, ok := searchFileContent(walkPath, info, query); ok {
 				results = append(results, searchResult{
-					Name:         info.Name(),
-					RelPath:      rel,
-					HighlightURL: dirURL + "?highlight=" + url.QueryEscape(info.Name()),
-					DownloadURL:  route + "/" + rel + "?download",
-					MatchType:    "content",
-					Snippet:      snippet,
+					Name:    info.Name(),
+					RelPath: rel,
+					HighlightURL: dirURL + "?" + highlightQuery + "=" + url.QueryEscape(
+						info.Name(),
+					),
+					DownloadURL: route + "/" + rel + "?" + downloadQuery,
+					MatchType:   contentQuery,
+					Snippet:     snippet,
 				})
 			}
 		}
@@ -148,40 +151,40 @@ func searchFileContent(path string, info os.FileInfo, query string) (string, boo
 //
 // Bare words "ext" or "extension" without a trailing colon are left in the
 // base query unchanged, so you can still search for files containing those words.
-func parseSearchQuery(raw string) (baseQuery, extFilter string) {
-	tokens := strings.Fields(raw)
-	rest := tokens[:0]
-
-	for _, t := range tokens {
-		lower := strings.ToLower(t)
-
-		var (
-			val   string
-			isTag bool
-		)
-
-		if after, ok := strings.CutPrefix(lower, "extension:"); ok && after != "" {
-			val, isTag = after, true
-		} else if after, ok := strings.CutPrefix(lower, "ext:"); ok && after != "" {
-			val, isTag = after, true
-		}
-
-		if isTag {
-			if !strings.HasPrefix(val, ".") {
-				val = "." + val
-			}
-
-			extFilter = val
-
-			continue
-		}
-
-		rest = append(rest, t)
+func parseSearchQuery(raw string) (query, filter string) {
+	tagPrefixes := map[string]*string{
+		"extension:": &filter,
+		"ext:":       &filter,
 	}
 
-	baseQuery = strings.ToLower(strings.Join(rest, " "))
+	tokens := strings.Fields(raw)
 
-	return baseQuery, extFilter
+	rest := tokens[:0]
+	for _, t := range tokens {
+		lower := strings.ToLower(t)
+		matched := false
+
+		for prefix, target := range tagPrefixes {
+			if after, ok := strings.CutPrefix(lower, prefix); ok && after != "" {
+				if !strings.HasPrefix(after, ".") {
+					after = "." + after
+				}
+
+				*target = after
+				matched = true
+
+				break
+			}
+		}
+
+		if !matched {
+			rest = append(rest, t)
+		}
+	}
+
+	query = strings.ToLower(strings.Join(rest, " "))
+
+	return query, filter
 }
 
 // extSliceToJSObject converts a slice of file extensions into a JSON object

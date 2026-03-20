@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ricochhet/london2038patcher/pkg/errutil"
+	"github.com/ricochhet/london2038patcher/pkg/httputil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 	"github.com/ricochhet/london2038patcher/pkg/strutil"
 )
@@ -27,7 +29,7 @@ func handleListing(
 ) {
 	rawEntries, err := os.ReadDir(absPath)
 	if err != nil {
-		http.Error(w, "Failed to read directory", http.StatusInternalServerError)
+		errutil.HTTPInternalServerErrorf(w, "Failed to read directory: %v\n", err)
 		return
 	}
 
@@ -53,7 +55,7 @@ func handleListing(
 
 	fileCount := 0
 
-	entries := make([]dirEntry, 0, len(filtered))
+	entries := make([]entry, 0, len(filtered))
 	for _, e := range filtered {
 		info, err := e.Info()
 		if err != nil {
@@ -82,10 +84,10 @@ func handleListing(
 
 		if !e.IsDir() {
 			ext = strings.ToLower(filepath.Ext(e.Name()))
-			previewURL = entryURL + "?preview"
+			previewURL = entryURL + "?" + previewQuery
 		}
 
-		entries = append(entries, dirEntry{
+		entries = append(entries, entry{
 			Name:        e.Name(),
 			IsDir:       e.IsDir(),
 			SizeStr:     sizeStr,
@@ -93,8 +95,8 @@ func handleListing(
 			ModStr:      info.ModTime().Format("2006-01-02  15:04"),
 			ModUnix:     info.ModTime().Unix(),
 			BrowseURL:   entryURL,
-			DownloadURL: entryURL + "?download",
-			InfoURL:     entryURL + "?info",
+			DownloadURL: entryURL + "?" + downloadQuery,
+			InfoURL:     entryURL + "?" + infoQuery,
 			PreviewURL:  previewURL,
 			Ext:         ext,
 		})
@@ -135,7 +137,7 @@ func handleListing(
 		totalSizeStr = strutil.Size(totalBytes)
 	}
 
-	data := dirTemplateData{
+	data := templateData{
 		Title:         title,
 		Breadcrumbs:   buildBreadcrumbs(route, trimmed),
 		Parent:        parent,
@@ -151,10 +153,10 @@ func handleListing(
 		TextExtsJSON:  textExtsJSON,
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	httputil.ContentType(w, httputil.ContentTypeHTML)
 
 	if err := tmpl.Execute(w, data); err != nil {
-		logutil.Errorf(logutil.Get(), "dirTempl.Execute: %v\n", err)
+		logutil.Errorf(logutil.Get(), "tmpl.Execute: %v\n", err)
 	}
 }
 
