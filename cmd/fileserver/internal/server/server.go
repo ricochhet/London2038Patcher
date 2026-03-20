@@ -22,6 +22,7 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
 	"github.com/ricochhet/london2038patcher/pkg/errutil"
 	"github.com/ricochhet/london2038patcher/pkg/fsutil"
+	"github.com/ricochhet/london2038patcher/pkg/httputil"
 	"github.com/ricochhet/london2038patcher/pkg/jsonutil"
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
@@ -135,7 +136,7 @@ func withBasicAuth(user, password string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, p, ok := r.BasicAuth()
 			if !ok || u != user || p != password {
-				w.Header().Set("WWW-Authenticate", `Basic realm="fileserver"`)
+				httputil.BasicAuthChallenge(w, "fileserver")
 				errutil.HTTPUnauthorized(w)
 
 				return
@@ -155,7 +156,7 @@ func wrapBasicAuth(auth configutil.BasicAuth, h http.Handler) http.Handler {
 	return withBasicAuth(auth.Username, auth.Password)(h)
 }
 
-// shutdown handles shutdown of all servers.
+// shutdown handles graceful shutdown of all servers on interrupt or SIGTERM.
 func (c *Context) shutdown() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -200,12 +201,12 @@ func (c *Context) removeHosts(cfg *configutil.Config) error {
 	return hostsutil.Remove(hf, cfg.Hosts)
 }
 
-// isHostsValid returns if the hosts state is valid.
+// isHostsValid returns whether hosts management is enabled and the config supplies entries.
 func (c *Context) isHostsValid(cfg *configutil.Config) bool {
 	return c.Hosts && cfg.Hosts != nil && len(cfg.Hosts) != 0
 }
 
-// maybeTLS sets TLS based on whether flags are based, or if relevant config options are used.
+// maybeTLS resolves TLS configuration from flags and config file, preferring flags.
 func (c *Context) maybeTLS(cfg *configutil.Config) {
 	if c.TLS.CertFile == "" || c.TLS.KeyFile == "" { // default flags
 		c.TLS.Enabled = false
@@ -221,7 +222,7 @@ func (c *Context) maybeTLS(cfg *configutil.Config) {
 	}
 }
 
-// maybeReadConfig reads the file path if it exists, otherwise returning a default config.
+// maybeReadConfig reads the config file if it exists, otherwise returns a default config.
 func (c *Context) maybeReadConfig(path string) (*configutil.Config, error) {
 	var (
 		config *configutil.Config
@@ -245,7 +246,7 @@ func (c *Context) maybeReadConfig(path string) (*configutil.Config, error) {
 	}
 }
 
-// startServer starts an HTTP server with the specified server configuration.
+// startServer configures rate limits and registers all handlers for a single server entry.
 func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) error {
 	browseRateLimit := 500
 	if cfg.BrowseRateLimit != 0 {
@@ -276,7 +277,7 @@ func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) e
 	return nil
 }
 
-// serveFileHandler handles the ServeFileHandler for each file entry.
+// serveFileHandler registers browse and file routes for each FileEntry.
 func (c *Context) serveFileHandler(
 	ctx *serverutil.Context,
 	cfg *configutil.Server,
@@ -316,7 +317,7 @@ func (c *Context) serveFileHandler(
 	return nil
 }
 
-// serveContentHandler handles the ServeContentHandler for each content entry.
+// serveContentHandler registers routes for each ContentEntry.
 func (c *Context) serveContentHandler(
 	ctx *serverutil.Context,
 	cfg *configutil.Server,
@@ -343,7 +344,7 @@ func (c *Context) serveContentHandler(
 	return nil
 }
 
-// matchPattern handles file paths that contain glob information.
+// matchPattern walks a directory and registers a route for each file found.
 func matchPattern(
 	f configutil.FileEntry,
 	ctx *serverutil.Context,
@@ -380,7 +381,7 @@ func matchPattern(
 	})
 }
 
-// matchFile handles absolute file paths.
+// matchFile registers a route for a single absolute file path.
 func matchFile(
 	f configutil.FileEntry,
 	ctx *serverutil.Context,

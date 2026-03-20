@@ -1,7 +1,6 @@
 package browse
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 
@@ -13,10 +12,7 @@ import (
 // handleDownload handles downloading of files and directories.
 func handleDownload(w http.ResponseWriter, r *http.Request, root string, stat os.FileInfo) {
 	if !stat.IsDir() {
-		w.Header().Set(
-			"Content-Disposition",
-			fmt.Sprintf(`attachment; filename=%q`, stat.Name()),
-		)
+		httputil.ContentDispositionAttachment(w, stat.Name())
 
 		f, err := os.Open(root)
 		if err != nil {
@@ -33,10 +29,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request, root string, stat os
 	name := stat.Name() + ".zip"
 
 	httputil.ContentType(w, httputil.ContentTypeZip)
-	w.Header().Set(
-		"Content-Disposition",
-		fmt.Sprintf(`attachment; filename=%q`, name),
-	)
+	httputil.ContentDispositionAttachment(w, name)
 
 	if err := writeZipArchive(w, root); err != nil {
 		logutil.Errorf(logutil.Get(), "handleDownload zip walk: %v\n", err)
