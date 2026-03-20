@@ -9,9 +9,10 @@ require (
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
 	github.com/go-chi/httprate v0.15.0
+	github.com/goodhosts/hostsfile v0.1.7
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-colorable v0.1.14
-	github.com/sasha-s/go-deadlock v0.3.6
+	github.com/sasha-s/go-deadlock v0.3.9
 	github.com/tidwall/jsonc v0.3.3
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
 )
@@ -19,7 +20,6 @@ require (
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/goodhosts/hostsfile v0.1.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
