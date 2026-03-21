@@ -7,17 +7,17 @@ import (
 	"path/filepath"
 )
 
-// writeZipArchive creates a zip of the specified root path.
+// writeZipArchive writes a zip of root to w.
 func writeZipArchive(w io.Writer, root string) error {
 	zw := zip.NewWriter(w)
 	defer zw.Close()
 
-	return filepath.Walk(root, func(walkPath string, info os.FileInfo, err error) error {
+	return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return err
 		}
 
-		rel, err := filepath.Rel(root, walkPath)
+		rel, err := filepath.Rel(root, p)
 		if err != nil {
 			return err
 		}
@@ -35,7 +35,7 @@ func writeZipArchive(w io.Writer, root string) error {
 			return err
 		}
 
-		f, err := os.Open(walkPath)
+		f, err := os.Open(p)
 		if err != nil {
 			return err
 		}

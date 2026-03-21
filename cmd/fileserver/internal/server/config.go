@@ -6,7 +6,7 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
 )
 
-// newDefaultConfig creates a default Config with the embedded index bytes.
+// newDefaultConfig returns a minimal default server config using embedded assets.
 func (c *Context) newDefaultConfig() *configutil.Config {
 	return &configutil.Config{
 		Servers: []configutil.Server{

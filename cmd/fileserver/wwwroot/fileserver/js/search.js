@@ -1,8 +1,9 @@
-import { t } from "./i18n.js";
-import { escHtml } from "./table.js";
+import { t } from "/js/i18n.js";
+import { escHtml } from "/js/table.js";
 
 const SK = location.pathname;
 
+/** Parses a raw search string into a base query and optional ext: filter. */
 export function parseQueryTags(raw) {
     const tokens = raw.trim().split(/\s+/);
     const rest = [];
@@ -24,23 +25,24 @@ export function parseQueryTags(raw) {
     return { base: rest.join(" "), ext };
 }
 
+/** Renders or clears the active extension filter chip. */
 export function updateTagHint(parsed) {
-    const tagHint = document.getElementById("slv-tag-hint");
+    const hint = document.getElementById("slv-tag-hint");
     const input = document.getElementById("slv-search-input");
-    if (!tagHint) return;
+    if (!hint) return;
 
     if (!parsed.ext) {
-        tagHint.innerHTML = "";
-        tagHint.style.display = "none";
+        hint.innerHTML = "";
+        hint.style.display = "none";
         return;
     }
 
-    tagHint.style.display = "flex";
-    tagHint.innerHTML =
+    hint.style.display = "flex";
+    hint.innerHTML =
         `<span class="slv-tag-chip">${escHtml(t("ext_filter_label"))} <strong>${escHtml(parsed.ext)}</strong>`
         + `<button class="slv-tag-remove" title="${escHtml(t("ext_filter_remove_title"))}">\xd7</button></span>`;
 
-    tagHint.querySelector(".slv-tag-remove").addEventListener("click", () => {
+    hint.querySelector(".slv-tag-remove").addEventListener("click", () => {
         input.value = input.value
             .replace(/\b(?:ext|extension):\S*/gi, "")
             .replace(/\s+/g, " ")
@@ -50,14 +52,15 @@ export function updateTagHint(parsed) {
     });
 }
 
+/** Binds the search input, content toggle, and keyboard shortcuts for the given browse route. */
 export function initSearch(route) {
     const input = document.getElementById("slv-search-input");
     const results = document.getElementById("slv-search-results");
-    const contentToggle = document.getElementById("slv-content-toggle");
+    const toggle = document.getElementById("slv-content-toggle");
 
     let activeIdx = -1;
-    let contentSearch = false;
-    let searchTimer = null;
+    let inContent = false;
+    let timer = null;
 
     const closeResults = () => {
         results.classList.remove("open");
@@ -82,11 +85,11 @@ export function initSearch(route) {
         updateTagHint(parsed);
         if (!parsed.base && !parsed.ext) { closeResults(); return; }
 
-        let fetchURL = `${route}?search=${encodeURIComponent(raw)}`;
-        if (contentSearch) fetchURL += "&content=1";
+        let url = `${route}?search=${encodeURIComponent(raw)}`;
+        if (inContent) url += "&content=1";
 
         try {
-            const r = await fetch(fetchURL);
+            const r = await fetch(url);
             const items = await r.json();
 
             if (!items?.length) {
@@ -120,16 +123,16 @@ export function initSearch(route) {
     }
 
     input.addEventListener("input", () => {
-        clearTimeout(searchTimer);
+        clearTimeout(timer);
         const q = input.value.trim();
         sessionStorage.setItem(`fs_q_${SK}`, q);
         if (!q) { closeResults(); updateTagHint({ ext: null }); return; }
-        searchTimer = setTimeout(() => doSearch(q), 220);
+        timer = setTimeout(() => doSearch(q), 220);
     });
 
-    contentToggle.addEventListener("click", () => {
-        contentSearch = !contentSearch;
-        contentToggle.classList.toggle("active", contentSearch);
+    toggle.addEventListener("click", () => {
+        inContent = !inContent;
+        toggle.classList.toggle("active", inContent);
         const q = input.value.trim();
         if (q) doSearch(q);
     });
@@ -163,7 +166,7 @@ export function initSearch(route) {
     });
 
     document.addEventListener("click", e => {
-        if (![input, results, contentToggle, document.getElementById("slv-tag-hint")]
+        if (![input, results, toggle, document.getElementById("slv-tag-hint")]
             .some(el => el?.contains(e.target))) {
             closeResults();
         }

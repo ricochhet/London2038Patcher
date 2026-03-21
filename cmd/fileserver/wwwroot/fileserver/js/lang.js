@@ -1,7 +1,7 @@
 import {
     detectLang, loadLocale, setStrings,
     applyI18n, buildLangSelector, whenReady,
-} from "./i18n.js";
+} from "/js/i18n.js";
 
 await whenReady(() => {
     applyI18n({});
@@ -13,9 +13,9 @@ await whenReady(() => {
         applyI18n({});
     });
 
-    const initialLang = detectLang();
-    if (initialLang !== "en") {
-        loadLocale(initialLang).then(data => {
+    const lang = detectLang();
+    if (lang !== "en") {
+        loadLocale(lang).then(data => {
             if (Object.keys(data).length) {
                 setStrings(data);
                 applyI18n({});

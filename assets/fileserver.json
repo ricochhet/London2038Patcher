@@ -3,8 +3,13 @@
         {
             "port": 8080,
             "formAuth": {
-                "username": "username",
-                "password": "password",
+                "users": [
+                    {
+                        "username": "username",
+                        "password": "password",
+                        "displayName": ""
+                    }
+                ],
                 "secret": "",
                 "publicPrefixes": [
                     "/css/",
@@ -123,6 +128,15 @@
                     }
                 },
                 {
+                    "route": "/js/userbar.js",
+                    "name": "js/userbar.js",
+                    "base64": "asset:js/userbar.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
                     "route": "/js/locales/en.json",
                     "name": "js/locales/en.json",
                     "base64": "asset:js/locales/en.json",
@@ -130,6 +144,61 @@
                         "statusCode": 0,
                         "headers": {}
                     }
+                },
+                {
+                    "route": "/js/chat/chat.js",
+                    "name": "js/chat/chat.js",
+                    "base64": "asset:js/chat/chat.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/chat/state.js",
+                    "name": "js/chat/state.js",
+                    "base64": "asset:js/chat/state.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/chat/channels.js",
+                    "name": "js/chat/channels.js",
+                    "base64": "asset:js/chat/channels.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/chat/messages.js",
+                    "name": "js/chat/messages.js",
+                    "base64": "asset:js/chat/messages.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                },
+                {
+                    "route": "/js/chat/modal.js",
+                    "name": "js/chat/modal.js",
+                    "base64": "asset:js/chat/modal.js",
+                    "info": {
+                        "statusCode": 0,
+                        "headers": {}
+                    }
+                }
+            ],
+            "chatChannels": [
+                {
+                    "code": "general",
+                    "name": "General"
+                },
+                {
+                    "code": "patcher",
+                    "name": "Patcher Support"
                 }
             ]
         }

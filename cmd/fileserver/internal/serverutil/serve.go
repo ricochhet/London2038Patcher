@@ -1,7 +1,9 @@
 package serverutil
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -10,9 +12,9 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
-// listenAndServe creates an HTTP server at the specified address.
-func (h *Context) ListenAndServe(addr string) *http.Server {
-	server := &http.Server{
+// ListenAndServe starts the HTTP server in a background goroutine and returns it.
+func (h *Context) ListenAndServe(baseCtx context.Context, addr string) *http.Server {
+	srv := &http.Server{
 		Addr:              addr,
 		Handler:           h.Get().Router,
 		ReadHeaderTimeout: time.Duration(h.Get().Timeouts.ReadHeader) * time.Second,
@@ -21,20 +23,21 @@ func (h *Context) ListenAndServe(addr string) *http.Server {
 		IdleTimeout:       time.Duration(h.Get().Timeouts.Idle) * time.Second,
 	}
 
+	if baseCtx != nil {
+		srv.BaseContext = func(net.Listener) context.Context { return baseCtx }
+	}
+
 	logutil.Infof(logutil.Get(), "Server listening on %s\n", addr)
 
 	go func() {
 		var err error
 
 		if h.Get().TLS.Enabled {
-			fmt.Fprintf(
-				os.Stdout,
-				"Server starting with tls: %s (cert) and %s (key)\n",
-				h.Get().TLS.CertFile, h.Get().TLS.KeyFile,
-			)
-			err = server.ListenAndServeTLS(h.Get().TLS.CertFile, h.Get().TLS.KeyFile)
+			fmt.Fprintf(os.Stdout, "Server starting with tls: %s (cert) and %s (key)\n",
+				h.Get().TLS.CertFile, h.Get().TLS.KeyFile)
+			err = srv.ListenAndServeTLS(h.Get().TLS.CertFile, h.Get().TLS.KeyFile)
 		} else {
-			err = server.ListenAndServe()
+			err = srv.ListenAndServe()
 		}
 
 		if err != nil && err != http.ErrServerClosed {
@@ -47,5 +50,5 @@ func (h *Context) ListenAndServe(addr string) *http.Server {
 		}
 	}()
 
-	return server
+	return srv
 }

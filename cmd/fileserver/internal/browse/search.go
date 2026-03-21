@@ -14,11 +14,7 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/httputil"
 )
 
-// handleSearch walks abs and returns JSON results matching the search query.
-//   - ?search=q              — filename match
-//   - ?search=q&content=1    — also search inside file contents (text files ≤ 10 MB)
-//   - ext:dat or ext:.dat    — restrict results to files with that extension
-//   - extension:dat          — alias for ext:
+// handleSearch walks the directory tree and writes JSON search results.
 func handleSearch(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -26,7 +22,7 @@ func handleSearch(
 	hidden []string,
 ) error {
 	raw := strings.TrimSpace(r.URL.Query().Get(searchQuery))
-	contentSearch := r.URL.Query().Has(contentQuery)
+	inContent := r.URL.Query().Has(contentQuery)
 
 	query, filter := parseSearchQuery(raw)
 
@@ -38,7 +34,7 @@ func handleSearch(
 		return errutil.WithFrame(json.NewEncoder(w).Encode(results))
 	}
 
-	_ = filepath.Walk(abs, func(walkPath string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(abs, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -60,7 +56,7 @@ func handleSearch(
 			return nil
 		}
 
-		rel, err := filepath.Rel(abs, walkPath)
+		rel, err := filepath.Rel(abs, p)
 		if err != nil {
 			return errutil.WithFrame(err)
 		}
@@ -87,8 +83,8 @@ func handleSearch(
 			return nil
 		}
 
-		if contentSearch && query != "" {
-			if snippet, ok := searchFileContent(walkPath, info, query); ok {
+		if inContent && query != "" {
+			if snippet, ok := searchFileContent(p, info, query); ok {
 				results = append(results, searchResult{
 					Name:    info.Name(),
 					RelPath: rel,
@@ -111,13 +107,13 @@ func handleSearch(
 	return enc.Encode(results)
 }
 
-// searchFileContent checks whether query appears inside the given file.
-func searchFileContent(path string, info os.FileInfo, query string) (string, bool) {
+// searchFileContent returns a context snippet if query is found in a text file.
+func searchFileContent(fp string, info os.FileInfo, query string) (string, bool) {
 	if info.Size() > maxContentSearchSize {
 		return "", false
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(fp)
 	if err != nil {
 		return "", false
 	}
@@ -143,16 +139,9 @@ func searchFileContent(path string, info os.FileInfo, query string) (string, boo
 	return snippet, true
 }
 
-// parseSearchQuery splits a raw search string into a base query and an optional
-// extension filter. Tokens of the form "ext:VALUE" or "extension:VALUE" (case-
-// insensitive) are extracted as an extension filter; all remaining tokens form
-// the base query. The extension is normalised so that both "dat" and ".dat"
-// resolve to ".dat".
-//
-// Bare words "ext" or "extension" without a trailing colon are left in the
-// base query unchanged, so you can still search for files containing those words.
+// parseSearchQuery splits a raw query into a base term and an optional ext: filter.
 func parseSearchQuery(raw string) (query, filter string) {
-	tagPrefixes := map[string]*string{
+	prefixes := map[string]*string{
 		"extension:": &filter,
 		"ext:":       &filter,
 	}
@@ -164,7 +153,7 @@ func parseSearchQuery(raw string) (query, filter string) {
 		lower := strings.ToLower(t)
 		matched := false
 
-		for prefix, target := range tagPrefixes {
+		for prefix, target := range prefixes {
 			if after, ok := strings.CutPrefix(lower, prefix); ok && after != "" {
 				if !strings.HasPrefix(after, ".") {
 					after = "." + after
@@ -187,12 +176,7 @@ func parseSearchQuery(raw string) (query, filter string) {
 	return query, filter
 }
 
-// extSliceToJSObject converts a slice of file extensions into a JSON object
-// literal suitable for direct injection into a <script> block, e.g.:
-//
-//	{".jpg":1,".png":1}
-//
-// This lets the browser use O(1) property lookups instead of Array.includes.
+// extSliceToJSObject converts a slice of file extensions to a JSON object for O(1) browser lookups.
 func extSliceToJSObject(exts []string) template.JS {
 	m := make(map[string]int, len(exts))
 	for _, e := range exts {

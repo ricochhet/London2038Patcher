@@ -9,7 +9,7 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
-// handleDownload handles downloading of files and directories.
+// handleDownload serves a file directly or streams a directory as a zip archive.
 func handleDownload(w http.ResponseWriter, r *http.Request, root string, stat os.FileInfo) {
 	if !stat.IsDir() {
 		httputil.ContentDispositionAttachment(w, stat.Name())

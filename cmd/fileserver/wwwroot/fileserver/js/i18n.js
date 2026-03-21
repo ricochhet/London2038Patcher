@@ -11,6 +11,7 @@ const ready = fetch(`${LOCALE_BASE}en.json`)
         strings = { ...data };
     });
 
+/** Returns the translated string for key, substituting any vars. */
 export function t(key, vars) {
     let s = strings[key] ?? fallback[key] ?? key;
     if (vars) {
@@ -21,6 +22,7 @@ export function t(key, vars) {
     return s;
 }
 
+/** Returns the active locale code from localStorage or navigator. */
 export function detectLang() {
     const saved = localStorage.getItem("fs_lang");
     const locales = window.FS_LOCALES ?? { en: "English" };
@@ -29,6 +31,7 @@ export function detectLang() {
     return locales[nav] ? nav : "en";
 }
 
+/** Fetches and returns locale data for the given language code. */
 export async function loadLocale(lang) {
     if (lang === "en") return fallback;
     try {
@@ -40,15 +43,18 @@ export async function loadLocale(lang) {
     }
 }
 
+/** Merges data into the active string table, falling back to en for missing keys. */
 export function setStrings(data) {
     strings = Object.keys(data).length ? { ...fallback, ...data } : { ...fallback };
 }
 
+/** Calls fn after the default locale has loaded. */
 export async function whenReady(fn) {
     await ready;
     fn();
 }
 
+/** Applies i18n strings to all data-i18n elements in the document. */
 export function applyI18n(cfg) {
     for (const el of document.querySelectorAll("[data-i18n]")) {
         el.textContent = t(el.dataset.i18n);
@@ -63,19 +69,20 @@ export function applyI18n(cfg) {
         th.title = t("sort_click_title");
     }
 
-    const metaEl = document.getElementById("slv-dir-meta");
-    if (metaEl) {
+    const meta = document.getElementById("slv-dir-meta");
+    if (meta) {
         const n = cfg.fileCount;
         if (n > 0) {
             let label = t(n === 1 ? "files_count_one" : "files_count_many", { n });
             if (cfg.totalSize) label += `, ${cfg.totalSize}`;
-            metaEl.textContent = label;
+            meta.textContent = label;
         } else {
-            metaEl.textContent = "";
+            meta.textContent = "";
         }
     }
 }
 
+/** Populates the language selector and calls onchange when the user picks a language. */
 export function buildLangSelector(onchange) {
     const sel = document.getElementById("slv-lang-select");
     if (!sel) return;

@@ -16,25 +16,25 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/strutil"
 )
 
-// handleListing handles creating and listing files and directories in the browser.
+// handleListing renders a directory listing as HTML.
 func handleListing(
 	w http.ResponseWriter,
 	_ *http.Request,
 	tmpl *template.Template,
-	absPath, route, subPath string,
-	browseRoute string,
+	abs, route, sub string,
+	bRoute string,
 	hidden []string,
 	imageExtsJSON, textExtsJSON template.JS,
 	readmeCandidates []string,
 ) {
-	rawEntries, err := os.ReadDir(absPath)
+	all, err := os.ReadDir(abs)
 	if err != nil {
 		errutil.HTTPInternalServerErrorf(w, "Failed to read directory: %v\n", err)
 		return
 	}
 
-	filtered := rawEntries[:0]
-	for _, e := range rawEntries {
+	filtered := all[:0]
+	for _, e := range all {
 		if !isHidden(e.Name(), hidden) {
 			filtered = append(filtered, e)
 		}
@@ -49,9 +49,9 @@ func handleListing(
 		return strings.ToLower(filtered[i].Name()) < strings.ToLower(filtered[j].Name())
 	})
 
-	trimmed := strings.Trim(subPath, "/")
+	rel := strings.Trim(sub, "/")
 
-	var totalBytes int64
+	var total int64
 
 	fileCount := 0
 
@@ -62,11 +62,11 @@ func handleListing(
 			continue
 		}
 
-		var entryURL string
-		if trimmed == "" {
-			entryURL = route + "/" + e.Name()
+		var href string
+		if rel == "" {
+			href = route + "/" + e.Name()
 		} else {
-			entryURL = route + "/" + trimmed + "/" + e.Name()
+			href = route + "/" + rel + "/" + e.Name()
 		}
 
 		sizeStr := "—"
@@ -75,7 +75,7 @@ func handleListing(
 		if !e.IsDir() {
 			sizeBytes = info.Size()
 			sizeStr = strutil.Size(sizeBytes)
-			totalBytes += sizeBytes
+			total += sizeBytes
 			fileCount++
 		}
 
@@ -84,7 +84,7 @@ func handleListing(
 
 		if !e.IsDir() {
 			ext = strings.ToLower(filepath.Ext(e.Name()))
-			previewURL = entryURL + "?" + previewQuery
+			previewURL = href + "?" + previewQuery
 		}
 
 		entries = append(entries, entry{
@@ -94,23 +94,23 @@ func handleListing(
 			SizeBytes:   sizeBytes,
 			ModStr:      info.ModTime().Format("2006-01-02  15:04"),
 			ModUnix:     info.ModTime().Unix(),
-			BrowseURL:   entryURL,
-			DownloadURL: entryURL + "?" + downloadQuery,
-			InfoURL:     entryURL + "?" + infoQuery,
+			BrowseURL:   href,
+			DownloadURL: href + "?" + downloadQuery,
+			InfoURL:     href + "?" + infoQuery,
 			PreviewURL:  previewURL,
 			Ext:         ext,
 		})
 	}
 
-	entriesRaw, err := json.Marshal(entries)
+	raw, err := json.Marshal(entries)
 	if err != nil {
-		entriesRaw = []byte("[]")
+		raw = []byte("[]")
 	}
 
 	parent := ""
 
-	if trimmed != "" {
-		up := path.Dir("/" + trimmed)
+	if rel != "" {
+		up := path.Dir("/" + rel)
 		if up == "/" {
 			parent = route + "/"
 		} else {
@@ -119,36 +119,36 @@ func handleListing(
 	}
 
 	title := "/"
-	if trimmed != "" {
-		title = trimmed
+	if rel != "" {
+		title = rel
 	}
 
-	readmeContent := ""
+	readme := ""
 
 	for _, candidate := range readmeCandidates {
-		if b, err := os.ReadFile(filepath.Join(absPath, candidate)); err == nil {
-			readmeContent = string(b)
+		if b, err := os.ReadFile(filepath.Join(abs, candidate)); err == nil {
+			readme = string(b)
 			break
 		}
 	}
 
-	totalSizeStr := ""
+	totalStr := ""
 	if fileCount > 0 {
-		totalSizeStr = strutil.Size(totalBytes)
+		totalStr = strutil.Size(total)
 	}
 
 	data := templateData{
 		Title:         title,
-		Breadcrumbs:   buildBreadcrumbs(route, trimmed),
+		Breadcrumbs:   buildBreadcrumbs(route, rel),
 		Parent:        parent,
 		Entries:       entries,
-		EntriesJSON:   template.JS(entriesRaw),
+		EntriesJSON:   template.JS(raw),
 		IsEmpty:       len(entries) == 0,
-		Readme:        readmeContent,
-		HasReadme:     readmeContent != "",
-		Route:         browseRoute,
+		Readme:        readme,
+		HasReadme:     readme != "",
+		Route:         bRoute,
 		FileCount:     fileCount,
-		TotalSize:     totalSizeStr,
+		TotalSize:     totalStr,
 		ImageExtsJSON: imageExtsJSON,
 		TextExtsJSON:  textExtsJSON,
 	}
@@ -160,16 +160,16 @@ func handleListing(
 	}
 }
 
-// buildBreadcrumbs handles building of file browser paths.
-func buildBreadcrumbs(route, path string) []breadcrumb {
+// buildBreadcrumbs constructs breadcrumb navigation entries for the given path.
+func buildBreadcrumbs(route, p string) []breadcrumb {
 	root := breadcrumb{Name: "~", Link: route + "/"}
 
-	if path == "" {
+	if p == "" {
 		root.IsLast = true
 		return []breadcrumb{root}
 	}
 
-	parts := strings.Split(path, "/")
+	parts := strings.Split(p, "/")
 	crumbs := []breadcrumb{root}
 
 	for i, part := range parts {

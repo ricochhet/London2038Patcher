@@ -45,7 +45,7 @@ func main() {
 		Enabled:  true,
 		CertFile: flags.CertFile,
 		KeyFile:  flags.KeyFile,
-	}, Embed())
+	}, Embed(), flags.DbPath)
 	if err := serverCmd(s); err != nil {
 		logutil.Errorf(logutil.Get(), "%v\n", err)
 	}
@@ -68,6 +68,8 @@ func commands() (bool, error) {
 	case "list", "l":
 		cmds.Check(1)
 		return true, listCmd(rest...)
+	case "user", "u":
+		return true, userCmd(rest...)
 	case "help", "h":
 		cmds.Usage()
 	case "version", "v":

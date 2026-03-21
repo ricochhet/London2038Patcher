@@ -16,7 +16,9 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/browse"
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/chat"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/configutil"
+	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/db"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/hostsutil"
 	"github.com/ricochhet/london2038patcher/cmd/fileserver/internal/serverutil"
 	"github.com/ricochhet/london2038patcher/pkg/embedutil"
@@ -27,23 +29,30 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
+// Context is the top-level server runtime, created once and shared across all configured instances.
 type Context struct {
 	ConfigFile string
 	Hosts      bool
 	TLS        *configutil.TLS
 	FS         *embedutil.EmbeddedFileSystem
+	DbPath     string
 
-	servers []*http.Server
+	servers    []*http.Server
+	chatStore  *chat.Store
+	db         *db.DB
+	baseCancel context.CancelFunc
 }
 
-// NewServer returns a new Server type with assets preloaded.
+// NewServer returns a Context with the database and chat store initialized.
 func NewServer(
 	configFile string,
 	hosts bool,
 	tls *configutil.TLS,
 	fs *embedutil.EmbeddedFileSystem,
+	dbPath string,
 ) *Context {
 	s := &Context{}
+
 	if configFile != "" {
 		s.ConfigFile = configFile
 	}
@@ -51,11 +60,27 @@ func NewServer(
 	s.Hosts = hosts
 	s.TLS = tls
 	s.FS = fs
+	s.DbPath = dbPath
+
+	database, err := db.Open(db.Path(dbPath))
+	if err != nil {
+		logutil.Errorf(
+			logutil.Get(),
+			"Warning: could not open database, running without persistence: %v\n",
+			err,
+		)
+	} else {
+		s.db = database
+
+		logutil.Infof(logutil.Get(), "Database opened: %s\n", db.Path(dbPath))
+	}
+
+	s.chatStore = chat.NewStore(s.db)
 
 	return s
 }
 
-// StartServer starts an HTTP server with the specified server configuration.
+// StartServer loads config, starts all HTTP servers, and blocks until shutdown.
 func (c *Context) StartServer() error {
 	config, err := c.maybeReadConfig(c.ConfigFile)
 	if err != nil {
@@ -67,6 +92,10 @@ func (c *Context) StartServer() error {
 	}
 
 	c.maybeTLS(config)
+
+	// baseCtx is canceled before Shutdown() so SSE streams exit promptly rather than timing out.
+	baseCtx, baseCancel := context.WithCancel(context.Background())
+	c.baseCancel = baseCancel
 
 	for _, cfg := range config.Servers {
 		ctx := serverutil.NewContext()
@@ -96,18 +125,25 @@ func (c *Context) StartServer() error {
 			Timeouts: &cfg.Timeouts,
 		})
 
-		if cfg.FormAuth.Username != "" && cfg.FormAuth.Password != "" {
+		if len(cfg.FormAuth.Users) > 0 {
 			secret := resolveFormAuthSecret(cfg.FormAuth.Secret)
-			r.Use(withFormAuth(secret, cfg.FormAuth.PublicPrefixes))
-			c.registerAuthRoutes(ctx.Handle, cfg.FormAuth.Username, cfg.FormAuth.Password, secret)
+
+			if c.db != nil {
+				c.seedUsersFromConfig(cfg.FormAuth.Users)
+			}
+
+			r.Use(withFormAuth(cfg.FormAuth.Users, secret, cfg.FormAuth.PublicPrefixes, c.db))
+			c.registerAuthRoutes(ctx.Handle, cfg.FormAuth.Users, secret, c.db)
+
 			logutil.Infof(
 				logutil.Get(),
-				"Port %d: form auth enabled for user %q\n",
+				"Port %d: form auth enabled (%d user(s))\n",
 				cfg.Port,
-				cfg.FormAuth.Username,
+				len(cfg.FormAuth.Users),
 			)
 		} else if cfg.BasicAuth.Username != "" && cfg.BasicAuth.Password != "" {
 			r.Use(withBasicAuth(cfg.BasicAuth.Username, cfg.BasicAuth.Password))
+
 			logutil.Infof(
 				logutil.Get(),
 				"Port %d: basic auth enabled for user %q\n",
@@ -116,7 +152,26 @@ func (c *Context) StartServer() error {
 			)
 		}
 
-		if err := c.startServer(ctx, &cfg); err != nil {
+		resolver := func(req *http.Request) (string, string) {
+			return usernameFromCtx(req), displayNameFromCtx(req)
+		}
+
+		chatHTML := embedutil.MaybeRead(c.FS, "chat.html")
+		r.Mount("/chat", chat.Handler(c.chatStore, resolver, chatHTML))
+		logutil.Infof(logutil.Get(), "Port %d: /chat mounted\n", cfg.Port)
+
+		for _, ch := range cfg.ChatChannels {
+			c.chatStore.SeedChannel(ch.Code, ch.Name)
+			logutil.Infof(
+				logutil.Get(),
+				"Port %d: seeded chat channel %q (%s)\n",
+				cfg.Port,
+				ch.Name,
+				ch.Code,
+			)
+		}
+
+		if err := c.startServer(baseCtx, ctx, &cfg); err != nil {
 			return errutil.New("c.startServer", err)
 		}
 	}
@@ -130,7 +185,21 @@ func (c *Context) StartServer() error {
 	return nil
 }
 
-// withBasicAuth returns a chi middleware that enforces HTTP Basic Authentication.
+// seedUsersFromConfig upserts all config-defined form-auth users into the database.
+func (c *Context) seedUsersFromConfig(users []configutil.FormAuthUser) {
+	for _, u := range users {
+		dn := u.DisplayName
+		if dn == "" {
+			dn = generateDisplayName(u.Username)
+		}
+
+		if err := c.db.UpsertUser(context.Background(), u.Username, u.Password, dn); err != nil {
+			logutil.Errorf(logutil.Get(), "seedUsersFromConfig: upsert %q: %v\n", u.Username, err)
+		}
+	}
+}
+
+// withBasicAuth returns middleware enforcing HTTP Basic Authentication.
 func withBasicAuth(user, password string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +216,7 @@ func withBasicAuth(user, password string) func(http.Handler) http.Handler {
 	}
 }
 
-// wrapBasicAuth wraps a single handler with Basic Auth when credentials are non-empty.
+// wrapBasicAuth wraps a handler with Basic Auth when credentials are non-empty.
 func wrapBasicAuth(auth configutil.BasicAuth, h http.Handler) http.Handler {
 	if auth.Username == "" || auth.Password == "" {
 		return h
@@ -156,12 +225,15 @@ func wrapBasicAuth(auth configutil.BasicAuth, h http.Handler) http.Handler {
 	return withBasicAuth(auth.Username, auth.Password)(h)
 }
 
-// shutdown handles graceful shutdown of all servers on interrupt or SIGTERM.
+// shutdown waits for interrupt or SIGTERM then gracefully drains all servers and closes the DB.
 func (c *Context) shutdown() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
 	<-stop
+
+	if c.baseCancel != nil {
+		c.baseCancel()
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -171,9 +243,16 @@ func (c *Context) shutdown() {
 			logutil.Errorf(logutil.Get(), "Error shutting down server: %v\n", err)
 		}
 	}
+
+	// Close the DB after servers drain so in-flight SaveMessage calls can complete.
+	if c.db != nil {
+		if err := c.db.Close(); err != nil {
+			logutil.Errorf(logutil.Get(), "Error closing database: %v\n", err)
+		}
+	}
 }
 
-// addHosts adds the specified hosts from the configuration.
+// addHosts adds config-defined hosts entries to the system hosts file.
 func (c *Context) addHosts(cfg *configutil.Config) error {
 	if !c.isHostsValid(cfg) {
 		return nil
@@ -187,7 +266,7 @@ func (c *Context) addHosts(cfg *configutil.Config) error {
 	return hostsutil.Add(hf, cfg.Hosts)
 }
 
-// removeHosts removes the specified hosts from the configuration.
+// removeHosts removes config-defined hosts entries from the system hosts file.
 func (c *Context) removeHosts(cfg *configutil.Config) error {
 	if !c.isHostsValid(cfg) {
 		return nil
@@ -201,53 +280,55 @@ func (c *Context) removeHosts(cfg *configutil.Config) error {
 	return hostsutil.Remove(hf, cfg.Hosts)
 }
 
-// isHostsValid returns whether hosts management is enabled and the config supplies entries.
+// isHostsValid reports whether hosts management is enabled and entries are present.
 func (c *Context) isHostsValid(cfg *configutil.Config) bool {
-	return c.Hosts && cfg.Hosts != nil && len(cfg.Hosts) != 0
+	return c.Hosts && len(cfg.Hosts) != 0
 }
 
-// maybeTLS resolves TLS configuration from flags and config file, preferring flags.
+// maybeTLS resolves TLS config from flags and config file, preferring flags.
 func (c *Context) maybeTLS(cfg *configutil.Config) {
-	if c.TLS.CertFile == "" || c.TLS.KeyFile == "" { // default flags
+	if c.TLS.CertFile == "" || c.TLS.KeyFile == "" {
 		c.TLS.Enabled = false
 	}
 
-	if fsutil.Exists(c.TLS.CertFile) && fsutil.Exists(c.TLS.KeyFile) { // flags
+	if fsutil.Exists(c.TLS.CertFile) && fsutil.Exists(c.TLS.KeyFile) {
 		c.TLS.Enabled = true
 		return
 	}
 
-	if fsutil.Exists(cfg.TLS.CertFile) && fsutil.Exists(cfg.TLS.KeyFile) { // config
+	if fsutil.Exists(cfg.TLS.CertFile) && fsutil.Exists(cfg.TLS.KeyFile) {
 		c.TLS = &cfg.TLS
 	}
 }
 
-// maybeReadConfig reads the config file if it exists, otherwise returns a default config.
+// maybeReadConfig reads the config file if it exists, falling back to a default config.
 func (c *Context) maybeReadConfig(path string) (*configutil.Config, error) {
-	var (
-		config *configutil.Config
-		err    error
-	)
-
 	exists := fsutil.Exists(path)
+
 	switch {
 	case exists:
-		config, err = jsonutil.ReadAndUnmarshal[configutil.Config](path)
+		config, err := jsonutil.ReadAndUnmarshal[configutil.Config](path)
 		if err != nil {
 			logutil.Errorf(logutil.Get(), "Error reading server config: %v\n", err)
 		}
 
 		return config, err
+
 	case !exists && path != "":
 		return nil, fmt.Errorf("path specified but does not exist: %s", path)
+
 	default:
 		logutil.Infof(logutil.Get(), "Starting with default server config\n")
 		return c.newDefaultConfig(), nil
 	}
 }
 
-// startServer configures rate limits and registers all handlers for a single server entry.
-func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) error {
+// startServer registers all handlers and begins listening for a single server config entry.
+func (c *Context) startServer(
+	baseCtx context.Context,
+	ctx *serverutil.Context,
+	cfg *configutil.Server,
+) error {
 	browseRateLimit := 500
 	if cfg.BrowseRateLimit != 0 {
 		browseRateLimit = cfg.BrowseRateLimit
@@ -269,15 +350,13 @@ func (c *Context) startServer(ctx *serverutil.Context, cfg *configutil.Server) e
 		return errutil.New("c.serveContentHandler", err)
 	}
 
-	addr := fmt.Sprintf(":%d", cfg.Port)
-	srv := ctx.ListenAndServe(addr)
-
+	srv := ctx.ListenAndServe(baseCtx, fmt.Sprintf(":%d", cfg.Port))
 	c.servers = append(c.servers, srv)
 
 	return nil
 }
 
-// serveFileHandler registers browse and file routes for each FileEntry.
+// serveFileHandler registers browse and file-serving routes for each FileEntry.
 func (c *Context) serveFileHandler(
 	ctx *serverutil.Context,
 	cfg *configutil.Server,
@@ -291,16 +370,14 @@ func (c *Context) serveFileHandler(
 
 		if info.IsDir() && f.Browse != "" {
 			route := strings.TrimSuffix(f.Browse, "/")
-			handler := browse.Handler(
-				c.FS, f.Path, route, cfg.Hidden,
-				cfg,
+			h := browseLimit(
+				wrapBasicAuth(f.BasicAuth, browse.Handler(c.FS, f.Path, route, cfg.Hidden, cfg)),
 			)
-			handler = browseLimit(wrapBasicAuth(f.BasicAuth, handler))
 
 			logutil.Infof(logutil.Get(), "Port %d: %s/** -> %s (browse)\n", cfg.Port, route, f.Path)
 
-			ctx.Handle(route, handler)
-			ctx.Handle(route+"/*", handler)
+			ctx.Handle(route, h)
+			ctx.Handle(route+"/*", h)
 		}
 
 		if info.IsDir() {
@@ -351,7 +428,7 @@ func matchPattern(
 	cfg *configutil.Server,
 	fileLimit func(http.Handler) http.Handler,
 ) error {
-	return filepath.Walk(f.Path, func(path string, info os.FileInfo, err error) error {
+	return filepath.Walk(f.Path, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return errutil.WithFrame(err)
 		}
@@ -360,28 +437,29 @@ func matchPattern(
 			return nil
 		}
 
-		abs, err := filepath.Abs(path)
+		abs, err := filepath.Abs(p)
 		if err != nil {
-			return errutil.WithFramef("invalid path %s: %w", path, err)
+			return errutil.WithFramef("invalid path %s: %w", p, err)
 		}
 
-		rel, err := filepath.Rel(f.Path, path)
+		rel, err := filepath.Rel(f.Path, p)
 		if err != nil {
-			return errutil.WithFramef("cannot get relative path for %s: %w", path, err)
+			return errutil.WithFramef("cannot get relative path for %s: %w", p, err)
 		}
 
 		route := filepath.ToSlash(filepath.Join(f.Route, rel))
-
 		logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, route, abs)
 
-		handler := fileLimit(wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs)))
-		ctx.Handle(route, handler)
+		ctx.Handle(
+			route,
+			fileLimit(wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs))),
+		)
 
 		return nil
 	})
 }
 
-// matchFile registers a route for a single absolute file path.
+// matchFile registers a route for a single file path.
 func matchFile(
 	f configutil.FileEntry,
 	ctx *serverutil.Context,
@@ -395,8 +473,10 @@ func matchFile(
 
 	logutil.Infof(logutil.Get(), "Port %d: %s -> %s\n", cfg.Port, f.Route, abs)
 
-	handler := fileLimit(wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs)))
-	ctx.Handle(f.Route, handler)
+	ctx.Handle(
+		f.Route,
+		fileLimit(wrapBasicAuth(f.BasicAuth, serverutil.ServeFileHandler(f.Info, abs))),
+	)
 
 	return nil
 }

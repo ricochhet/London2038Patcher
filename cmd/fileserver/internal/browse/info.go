@@ -12,20 +12,15 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
-// handleInfo handles per-file information.
-func handleInfo(
-	w http.ResponseWriter,
-	_ *http.Request,
-	filePath, base string,
-	stat os.FileInfo,
-) {
-	rel, _ := filepath.Rel(base, filePath)
+// handleInfo writes file or directory metadata as JSON.
+func handleInfo(w http.ResponseWriter, _ *http.Request, path, base string, stat os.FileInfo) {
+	rel, _ := filepath.Rel(base, path)
 	rel = filepath.ToSlash(rel)
 
 	res := fileInfoResponse{
 		Name:        stat.Name(),
 		Path:        "/" + rel,
-		FullPath:    filePath,
+		FullPath:    path,
 		Size:        stat.Size(),
 		Modified:    stat.ModTime().UTC(),
 		IsDirectory: stat.IsDir(),
@@ -36,8 +31,8 @@ func handleInfo(
 		res.Extension = ext
 		res.MimeType = mime.TypeByExtension(ext)
 
-		if hash, err := cryptoutil.MD5(filePath); err != nil {
-			logutil.Errorf(logutil.Get(), "handleInfo md5 %q: %v\n", filePath, err)
+		if hash, err := cryptoutil.MD5(path); err != nil {
+			logutil.Errorf(logutil.Get(), "handleInfo md5 %q: %v\n", path, err)
 		} else {
 			res.MD5 = hash
 		}

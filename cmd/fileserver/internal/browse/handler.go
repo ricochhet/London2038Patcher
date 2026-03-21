@@ -103,7 +103,7 @@ type templateData struct {
 	TextExtsJSON  template.JS
 }
 
-// Handler is a handler that supplies a file browser.
+// Handler returns an http.Handler for browsing a directory rooted at path.
 func Handler(
 	fs *embedutil.EmbeddedFileSystem,
 	path, route string,
@@ -119,17 +119,17 @@ func Handler(
 	imageExtsJSON := extSliceToJSObject(imageExts)
 	textExtsJSON := extSliceToJSObject(textExts)
 
-	absBase, err := filepath.Abs(path)
+	base, err := filepath.Abs(path)
 	if err != nil {
 		panic(fmt.Sprintf("BrowseHandler: cannot resolve basePath %q: %v", path, err))
 	}
 
-	bytes := embedutil.MaybeRead(fs, browseTmplHTML)
-	tmpl := template.Must(template.New(browseTmpl).Parse(string(bytes)))
+	b := embedutil.MaybeRead(fs, browseTmplHTML)
+	tmpl := template.Must(template.New(browseTmpl).Parse(string(b)))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Has(searchQuery) {
-			if err := handleSearch(w, r, absBase, route, hidden); err != nil {
+			if err := handleSearch(w, r, base, route, hidden); err != nil {
 				errutil.HTTPInternalServerError(w)
 			}
 
@@ -138,7 +138,7 @@ func Handler(
 
 		sub := filepath.FromSlash(chi.URLParam(r, "*"))
 
-		abs, err := fsutil.SafeJoin(absBase, sub)
+		abs, err := fsutil.SafeJoin(base, sub)
 		if err != nil {
 			errutil.HTTPForbidden(w)
 			return
@@ -161,7 +161,7 @@ func Handler(
 		case r.URL.Query().Has(downloadQuery):
 			handleDownload(w, r, abs, stat)
 		case r.URL.Query().Has(infoQuery):
-			handleInfo(w, r, abs, absBase, stat)
+			handleInfo(w, r, abs, base, stat)
 		case stat.IsDir():
 			handleListing(
 				w, r, tmpl,
@@ -176,12 +176,11 @@ func Handler(
 	})
 }
 
-// maybeSlice returns s if its length is not 0, otherwise returns fallback.
+// maybeSlice returns s if non-empty, otherwise returns fallback.
 func maybeSlice(s, fallback []string) []string {
-	exts := s
-	if len(exts) == 0 {
-		exts = fallback
+	if len(s) == 0 {
+		return fallback
 	}
 
-	return exts
+	return s
 }

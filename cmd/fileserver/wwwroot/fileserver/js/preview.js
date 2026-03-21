@@ -1,6 +1,7 @@
-import { t } from "./i18n.js";
-import { escHtml } from "./table.js";
+import { t } from "/js/i18n.js";
+import { escHtml } from "/js/table.js";
 
+/** Initialises the preview modal and returns a showPreview(entry) function. */
 export function initPreview(imageExts, textExts) {
     const modal = document.getElementById("slv-preview-modal");
     const close = document.getElementById("slv-preview-close");

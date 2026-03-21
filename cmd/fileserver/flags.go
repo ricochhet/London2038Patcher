@@ -14,7 +14,8 @@ type Flags struct {
 	CertFile   string
 	KeyFile    string
 
-	Hosts bool
+	DbPath string
+	Hosts  bool
 }
 
 var (
@@ -24,6 +25,12 @@ var (
 		{Usage: "fileserver list [PATH]", Desc: "List embedded files"},
 		{Usage: "fileserver dump [PATH]", Desc: "Dump embedded files to disk"},
 		{Usage: "fileserver version", Desc: "Display fileserver version"},
+		{
+			Usage: "fileserver user add <username> [--display-name NAME]",
+			Desc:  "Add or update a user",
+		},
+		{Usage: "fileserver user remove <username>", Desc: "Remove a user"},
+		{Usage: "fileserver user list", Desc: "List all users"},
 	}
 )
 
@@ -45,5 +52,6 @@ func registerFlags(fs *flag.FlagSet, f *Flags) {
 	fs.StringVar(&f.ConfigFile, "c", "fileserver.json", "Path to file server configuration")
 	fs.StringVar(&f.CertFile, "cert", "", "TLS cert")
 	fs.StringVar(&f.KeyFile, "key", "", "TLS key")
+	fs.StringVar(&f.DbPath, "dbpath", "fileserver.db", "Fileserver database path")
 	fs.BoolVar(&f.Hosts, "hosts", false, "Modify hosts according to configuration")
 }

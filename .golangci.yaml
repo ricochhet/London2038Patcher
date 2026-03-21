@@ -107,6 +107,7 @@ linters:
         prevent_unmaintained_packages:
           allow:
             - $gostd
+            - golang.org/x/term
             - golang.org/x/sys/windows
             - golang.org/x/sys/windows/registry
             - github.com/go-chi/chi/v5
@@ -121,6 +122,7 @@ linters:
             - golang.org/x/sys/unix
             - github.com/goodhosts/hostsfile
             - github.com/sasha-s/go-deadlock
+            - modernc.org/sqlite
             - github.com/ricochhet/london2038patcher
     funlen:
       lines: 100

@@ -8,7 +8,7 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/httputil"
 )
 
-// handlePreview serves a file with Content-Disposition: inline so the browser can display it.
+// handlePreview serves a file inline for browser preview.
 func handlePreview(w http.ResponseWriter, r *http.Request, abs string, stat os.FileInfo) {
 	if stat.IsDir() {
 		errutil.HTTPBadRequestf(w, "Cannot preview a directory")

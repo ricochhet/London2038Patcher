@@ -24,11 +24,24 @@ type BasicAuth struct {
 	Password string `json:"password"`
 }
 
+// FormAuthUser is a single form-auth user; DisplayName is auto-generated if empty.
+type FormAuthUser struct {
+	Username    string `json:"username"`
+	Password    string `json:"password"`
+	DisplayName string `json:"displayName"`
+}
+
+// FormAuth configures form-based session cookie authentication.
 type FormAuth struct {
-	Username       string   `json:"username"`
-	Password       string   `json:"password"`
-	Secret         string   `json:"secret"`
-	PublicPrefixes []string `json:"publicPrefixes"`
+	Users          []FormAuthUser `json:"users"`
+	Secret         string         `json:"secret"`
+	PublicPrefixes []string       `json:"publicPrefixes"`
+}
+
+// ChatChannel is a config-defined channel seeded at startup; users still need the code to join.
+type ChatChannel struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
 }
 
 type Server struct {
@@ -44,6 +57,8 @@ type Server struct {
 
 	BasicAuth BasicAuth `json:"basicAuth"`
 	FormAuth  FormAuth  `json:"formAuth"`
+
+	ChatChannels []ChatChannel `json:"chatChannels"`
 
 	ImageExts        []string `json:"imageExts"`
 	TextExts         []string `json:"textExts"`
@@ -66,7 +81,7 @@ type FileEntry struct {
 type ContentEntry struct {
 	Route  string `json:"route"`
 	Name   string `json:"name"`
-	Base64 string `json:"base64"` // Unmarshal handles []byte as base64, so just handle the key as a string.
+	Base64 string `json:"base64"` // json marshals []byte as base64; string allows the "asset:" prefix scheme
 
 	Info Info `json:"info"`
 }
