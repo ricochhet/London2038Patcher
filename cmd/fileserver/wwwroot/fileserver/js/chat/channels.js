@@ -1,4 +1,4 @@
-import { t } from "/js/i18n.js";
+import { t } from "/js/components/i18n.js";
 import { state, els, apiFetch, API } from "/js/chat/state.js";
 import { renderMessages, scrollToBottom } from "/js/chat/messages.js";
 

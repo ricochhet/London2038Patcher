@@ -1,4 +1,4 @@
-import { t } from "/js/i18n.js";
+import { t } from "/js/components/i18n.js";
 import { state, els } from "/js/chat/state.js";
 
 const GROUP_MS = 2 * 60 * 1000; // messages from the same user within this window share a header

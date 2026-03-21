@@ -1,7 +1,7 @@
 import {
     t, detectLang, loadLocale, setStrings,
     applyI18n, buildLangSelector, whenReady,
-} from "/js/i18n.js";
+} from "/js/components/i18n.js";
 import { state, els, apiFetch, escHtml, API } from "/js/chat/state.js";
 import { appendMessage, renderMessages, scrollToBottom, isNearBottom } from "/js/chat/messages.js";
 import { renderSidebar, selectChannel, showEmpty } from "/js/chat/channels.js";

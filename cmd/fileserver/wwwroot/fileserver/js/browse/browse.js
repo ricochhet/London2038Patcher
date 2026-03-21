@@ -1,10 +1,10 @@
 import {
     t, detectLang, loadLocale, setStrings,
     applyI18n, buildLangSelector, whenReady,
-} from "/js/i18n.js";
-import { renderTable, initSortHeaders } from "/js/table.js";
-import { initSearch, parseQueryTags, updateTagHint } from "/js/search.js";
-import { initPreview } from "/js/preview.js";
+} from "/js/components/i18n.js";
+import { renderTable, initSortHeaders } from "/js/browse/table.js";
+import { initSearch, parseQueryTags, updateTagHint } from "/js/browse/search.js";
+import { initPreview } from "/js/browse/preview.js";
 import "/js/userbar.js";
 
 const CFG = window.FS_CONFIG ?? {};

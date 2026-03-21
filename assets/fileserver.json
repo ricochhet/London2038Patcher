@@ -70,72 +70,72 @@
                     }
                 },
                 {
-                    "route": "/js/browse.js",
-                    "name": "js/browse.js",
-                    "base64": "asset:js/browse.js",
+                    "route": "/js/browse/browse.js",
+                    "name": "js/browse/browse.js",
+                    "base64": "asset:js/browse/browse.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}
                     }
                 },
                 {
-                    "route": "/js/i18n.js",
-                    "name": "js/i18n.js",
-                    "base64": "asset:js/i18n.js",
+                    "route": "/js/components/i18n.js",
+                    "name": "js/components/i18n.js",
+                    "base64": "asset:js/components/i18n.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}
                     }
                 },
                 {
-                    "route": "/js/lang.js",
-                    "name": "js/lang.js",
-                    "base64": "asset:js/lang.js",
+                    "route": "/js/components/lang.js",
+                    "name": "js/components/lang.js",
+                    "base64": "asset:js/components/lang.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}
                     }
                 },
                 {
-                    "route": "/js/table.js",
-                    "name": "js/table.js",
-                    "base64": "asset:js/table.js",
+                    "route": "/js/browse/table.js",
+                    "name": "js/browse/table.js",
+                    "base64": "asset:js/browse/table.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}
                     }
                 },
                 {
-                    "route": "/js/search.js",
-                    "name": "js/search.js",
-                    "base64": "asset:js/search.js",
+                    "route": "/js/browse/search.js",
+                    "name": "js/browse/search.js",
+                    "base64": "asset:js/browse/search.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}
                     }
                 },
                 {
-                    "route": "/js/preview.js",
-                    "name": "js/preview.js",
-                    "base64": "asset:js/preview.js",
+                    "route": "/js/browse/preview.js",
+                    "name": "js/browse/preview.js",
+                    "base64": "asset:js/browse/preview.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}
                     }
                 },
                 {
-                    "route": "/js/readme.js",
-                    "name": "js/readme.js",
-                    "base64": "asset:js/readme.js",
+                    "route": "/js/browse/readme.js",
+                    "name": "js/browse/readme.js",
+                    "base64": "asset:js/browse/readme.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}
                     }
                 },
                 {
-                    "route": "/js/userbar.js",
-                    "name": "js/userbar.js",
-                    "base64": "asset:js/userbar.js",
+                    "route": "/js/components/userbar.js",
+                    "name": "js/components/userbar.js",
+                    "base64": "asset:js/components/userbar.js",
                     "info": {
                         "statusCode": 0,
                         "headers": {}

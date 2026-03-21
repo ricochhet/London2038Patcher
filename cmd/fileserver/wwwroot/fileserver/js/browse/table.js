@@ -1,4 +1,4 @@
-import { t } from "/js/i18n.js";
+import { t } from "/js/components/i18n.js";
 
 const SK = location.pathname;
 

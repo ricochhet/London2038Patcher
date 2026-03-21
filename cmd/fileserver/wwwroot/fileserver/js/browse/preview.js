@@ -1,5 +1,5 @@
-import { t } from "/js/i18n.js";
-import { escHtml } from "/js/table.js";
+import { t } from "/js/components/i18n.js";
+import { escHtml } from "/js/browse/table.js";
 
 /** Initialises the preview modal and returns a showPreview(entry) function. */
 export function initPreview(imageExts, textExts) {

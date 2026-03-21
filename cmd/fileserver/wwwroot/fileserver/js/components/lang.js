@@ -1,7 +1,7 @@
 import {
     detectLang, loadLocale, setStrings,
     applyI18n, buildLangSelector, whenReady,
-} from "/js/i18n.js";
+} from "/js/components/i18n.js";
 
 await whenReady(() => {
     applyI18n({});
