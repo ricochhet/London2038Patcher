@@ -5,23 +5,17 @@ CUSTOM=-X 'main.buildDate=$(shell date)' -X 'main.gitHash=$(shell git rev-parse 
 LDFLAGS=$(CUSTOM) -w -s -extldflags=-static
 GO_BUILD=go build -trimpath -ldflags "$(LDFLAGS)"
 
-APP_NAMES=patcher fileserver
+APP_NAMES=patcher
 
 PATCHER_PATH=./cmd/london2038patcher
 PATCHER_BIN_NAME=London2038Patcher
-
-FILESERVER_PATH=./cmd/fileserver
-FILESERVER_BIN_NAME=fileserver
-
-PM_PATH=./cmd/pm
-PM_BIN_NAME=pm
 
 define GO_BUILD_APP
 	CGO_ENABLED=1 GOOS=$(1) GOARCH=$(2) $(GO_BUILD) -o $(BUILD_OUTPUT)/$(3) $(4)
 endef
 
 .PHONY: all
-all: patcher fileserver
+all: patcher
 
 .PHONY: fmt
 fmt:
@@ -89,51 +83,3 @@ patcher-darwin-arm64: fmt
 .PHONY: patcher-windows
 patcher-windows: fmt copy-assets
 	$(call GO_BUILD_APP,windows,amd64,$(PATCHER_BIN_NAME).exe,$(PATCHER_PATH))
-
-# ----- FileServer -----
-.PHONY: fileserver
-fileserver: fileserver-linux fileserver-linux-arm64 fileserver-darwin fileserver-darwin-arm64 fileserver-windows
-
-.PHONY: fileserver-linux
-fileserver-linux: fmt
-	$(call GO_BUILD_APP,linux,amd64,$(FILESERVER_BIN_NAME)-linux,$(FILESERVER_PATH))
-
-.PHONY: fileserver-linux-arm64
-fileserver-linux-arm64: fmt
-	$(call GO_BUILD_APP,linux,arm64,$(FILESERVER_BIN_NAME)-linux-arm64,$(FILESERVER_PATH))
-
-.PHONY: fileserver-darwin
-fileserver-darwin: fmt
-	$(call GO_BUILD_APP,darwin,amd64,$(FILESERVER_BIN_NAME)-darwin,$(FILESERVER_PATH))
-
-.PHONY: fileserver-darwin-arm64
-fileserver-darwin-arm64: fmt
-	$(call GO_BUILD_APP,darwin,arm64,$(FILESERVER_BIN_NAME)-darwin-arm64,$(FILESERVER_PATH))
-
-.PHONY: fileserver-windows
-fileserver-windows: fmt copy-assets
-	$(call GO_BUILD_APP,windows,amd64,$(FILESERVER_BIN_NAME).exe,$(FILESERVER_PATH))
-
-# ----- PM -----
-.PHONY: pm
-pm: pm-linux pm-linux-arm64 pm-darwin pm-darwin-arm64 pm-windows
-
-.PHONY: pm-linux
-pm-linux: fmt
-	$(call GO_BUILD_APP,linux,amd64,$(PM_BIN_NAME)-linux,$(PM_PATH))
-
-.PHONY: pm-linux-arm64
-pm-linux-arm64: fmt
-	$(call GO_BUILD_APP,linux,arm64,$(PM_BIN_NAME)-linux-arm64,$(PM_PATH))
-
-.PHONY: pm-darwin
-pm-darwin: fmt
-	$(call GO_BUILD_APP,darwin,amd64,$(PM_BIN_NAME)-darwin,$(PM_PATH))
-
-.PHONY: pm-darwin-arm64
-pm-darwin-arm64: fmt
-	$(call GO_BUILD_APP,darwin,arm64,$(PM_BIN_NAME)-darwin-arm64,$(PM_PATH))
-
-.PHONY: pm-windows
-pm-windows: fmt copy-assets
-	$(call GO_BUILD_APP,windows,amd64,$(PM_BIN_NAME).exe,$(PM_PATH))

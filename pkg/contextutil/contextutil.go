@@ -12,7 +12,7 @@ func NewContext[T any]() *Context[T] {
 	return &Context[T]{}
 }
 
-// GetLocked returns the patcher.
+// GetLocked returns T.
 func (c *Context[T]) GetLocked() *T {
 	c.Mutex.Lock()
 	defer c.Mutex.Unlock()
@@ -25,7 +25,7 @@ func (c *Context[T]) Get() *T {
 	return c.t
 }
 
-// SetLocked sets the patcher.
+// SetLocked sets T.
 func (c *Context[T]) SetLocked(t *T) {
 	c.Mutex.Lock()
 	defer c.Mutex.Unlock()
@@ -38,7 +38,7 @@ func (c *Context[T]) Set(t *T) {
 	c.t = t
 }
 
-// CopyFrom sets all patcher to the target.
+// CopyFrom sets T to the target.
 func (c *Context[T]) CopyFrom(target *Context[T]) {
 	c.SetLocked(target.GetLocked())
 }

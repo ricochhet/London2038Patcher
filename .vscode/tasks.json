@@ -80,38 +80,6 @@
                 "panel": "shared"
             },
             "problemMatcher": []
-        },
-        {
-            "label": "Build fileserver (Windows)",
-            "type": "shell",
-            "command": "mingw32-make",
-            "args": [
-                "fileserver-windows",
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Build pm (Windows)",
-            "type": "shell",
-            "command": "mingw32-make",
-            "args": [
-                "pm-windows",
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": []
-        },
+        }
     ]
 }
