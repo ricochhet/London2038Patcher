@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -29,8 +31,6 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
-const defaultChatRoute = "/chat"
-
 // Context is the top-level server runtime, created once and shared across all configured instances.
 type Context struct {
 	ConfigFile string
@@ -44,6 +44,12 @@ type Context struct {
 	db         *db.DB
 	baseCancel context.CancelFunc
 }
+
+const (
+	defaultChatRoute = "/chat"
+	chatTmpl         = "chat"
+	chatTmplHTML     = "chat.html"
+)
 
 // NewServer returns a Context with the database and chat store initialized.
 func NewServer(
@@ -80,6 +86,24 @@ func NewServer(
 	s.chatStore = chat.NewStore(s.db)
 
 	return s
+}
+
+// renderChatTemplate executes chat.html as a Go template, injecting the chat route.
+// text/template is used intentionally — html/template applies context-aware JS escaping
+// inside script blocks, which corrupts the injected value. The chat route is server-controlled
+// so no sanitization is needed.
+func renderChatTemplate(src []byte, chatRoute string) ([]byte, error) {
+	tmpl, err := template.New(chatTmpl).Parse(string(src))
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, struct{ ChatRoute string }{chatRoute}); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 // StartServer loads config, starts all HTTP servers, and blocks until shutdown.
@@ -164,7 +188,11 @@ func (c *Context) StartServer() error {
 				chatRoute = defaultChatRoute
 			}
 
-			chatHTML := embedutil.MaybeRead(c.FS, "chat.html")
+			chatHTML, err := renderChatTemplate(embedutil.MaybeRead(c.FS, chatTmplHTML), chatRoute)
+			if err != nil {
+				return errutil.WithFramef("renderChatTemplate: %w", err)
+			}
+
 			r.Mount(chatRoute, chat.Handler(c.chatStore, resolver, chatHTML))
 			logutil.Infof(logutil.Get(), "Port %d: %s mounted\n", cfg.Port, chatRoute)
 

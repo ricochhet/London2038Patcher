@@ -57,7 +57,6 @@
                     <span id="slv-chat-channel-code" class="slv-chat-channel-code-badge"></span>
                 </div>
                 <div class="slv-chat-header-right">
-                    <span id="slv-conn-status" class="slv-conn-status slv-hidden" aria-live="polite"></span>
                     <button id="slv-leave-btn" class="slv-btn secondary" data-i18n="chat_leave_btn">leave</button>
                 </div>
             </div>
@@ -106,6 +105,7 @@
 
     <script>
         window.FS_LOCALES = { "en": "English" };
+        window.FS_CHAT_ROUTE = {{.ChatRoute | printf "%q"}};
     </script>
     <script type="module" src="/js/chat/chat.js"></script>
 

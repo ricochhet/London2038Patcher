@@ -30,7 +30,7 @@ function escHtml(s) {
 }
 
 // Fire immediately so the request runs in parallel with the i18n locale fetch.
-const mePromise = fetch("/chat/api/me")
+const mePromise = fetch(`${window.FS_CHAT_ROUTE ?? "/chat"}/api/me`)
     .then(r => (r.ok ? r.json() : null))
     .catch(() => null);
 

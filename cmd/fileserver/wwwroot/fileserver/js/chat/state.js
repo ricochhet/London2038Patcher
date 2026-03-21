@@ -1,11 +1,13 @@
+const chatRoute = window.FS_CHAT_ROUTE ?? "/chat";
+
 export const API = {
-    me: "/chat/api/me",
-    channels: "/chat/api/channels",
-    join: "/chat/api/channels/join",
-    leave: "/chat/api/channels/leave",
-    messages: "/chat/api/messages",
-    post: "/chat/api/messages",
-    events: "/chat/api/events",
+    me: `${chatRoute}/api/me`,
+    channels: `${chatRoute}/api/channels`,
+    join: `${chatRoute}/api/channels/join`,
+    leave: `${chatRoute}/api/channels/leave`,
+    messages: `${chatRoute}/api/messages`,
+    post: `${chatRoute}/api/messages`,
+    events: `${chatRoute}/api/events`,
 };
 
 export const state = {
@@ -45,7 +47,6 @@ export const els = {
     joinError: $("slv-join-error"),
     joinSubmit: $("slv-join-submit"),
     joinCancel: $("slv-join-cancel"),
-    // Shown while the SSE connection is down; hidden when connected.
     connStatus: $("slv-conn-status"),
 };
 

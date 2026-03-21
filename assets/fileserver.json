@@ -2,6 +2,11 @@
     "servers": [
         {
             "port": 8080,
+            "features": {
+                "chatRoute": "/chat",
+                "disableChat": false,
+                "disableBrowse": false
+            },
             "formAuth": {
                 "users": [
                     {
