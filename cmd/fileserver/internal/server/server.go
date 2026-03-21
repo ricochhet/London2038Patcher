@@ -29,6 +29,8 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
+const defaultChatRoute = "/chat"
+
 // Context is the top-level server runtime, created once and shared across all configured instances.
 type Context struct {
 	ConfigFile string
@@ -156,19 +158,28 @@ func (c *Context) StartServer() error {
 			return usernameFromCtx(req), displayNameFromCtx(req)
 		}
 
-		chatHTML := embedutil.MaybeRead(c.FS, "chat.html")
-		r.Mount("/chat", chat.Handler(c.chatStore, resolver, chatHTML))
-		logutil.Infof(logutil.Get(), "Port %d: /chat mounted\n", cfg.Port)
+		if !cfg.Features.DisableChat {
+			chatRoute := cfg.Features.ChatRoute
+			if chatRoute == "" {
+				chatRoute = defaultChatRoute
+			}
 
-		for _, ch := range cfg.ChatChannels {
-			c.chatStore.SeedChannel(ch.Code, ch.Name)
-			logutil.Infof(
-				logutil.Get(),
-				"Port %d: seeded chat channel %q (%s)\n",
-				cfg.Port,
-				ch.Name,
-				ch.Code,
-			)
+			chatHTML := embedutil.MaybeRead(c.FS, "chat.html")
+			r.Mount(chatRoute, chat.Handler(c.chatStore, resolver, chatHTML))
+			logutil.Infof(logutil.Get(), "Port %d: %s mounted\n", cfg.Port, chatRoute)
+
+			for _, ch := range cfg.ChatChannels {
+				c.chatStore.SeedChannel(ch.Code, ch.Name)
+				logutil.Infof(
+					logutil.Get(),
+					"Port %d: seeded chat channel %q (%s)\n",
+					cfg.Port,
+					ch.Name,
+					ch.Code,
+				)
+			}
+		} else {
+			logutil.Infof(logutil.Get(), "Port %d: chat feature disabled\n", cfg.Port)
 		}
 
 		if err := c.startServer(baseCtx, ctx, &cfg); err != nil {
@@ -369,15 +380,33 @@ func (c *Context) serveFileHandler(
 		}
 
 		if info.IsDir() && f.Browse != "" {
-			route := strings.TrimSuffix(f.Browse, "/")
-			h := browseLimit(
-				wrapBasicAuth(f.BasicAuth, browse.Handler(c.FS, f.Path, route, cfg.Hidden, cfg)),
-			)
+			if cfg.Features.DisableBrowse {
+				logutil.Infof(
+					logutil.Get(),
+					"Port %d: browse feature disabled — skipping browse route for %s\n",
+					cfg.Port,
+					f.Browse,
+				)
+			} else {
+				route := strings.TrimSuffix(f.Browse, "/")
+				h := browseLimit(
+					wrapBasicAuth(
+						f.BasicAuth,
+						browse.Handler(c.FS, f.Path, route, cfg.Hidden, cfg),
+					),
+				)
 
-			logutil.Infof(logutil.Get(), "Port %d: %s/** -> %s (browse)\n", cfg.Port, route, f.Path)
+				logutil.Infof(
+					logutil.Get(),
+					"Port %d: %s/** -> %s (browse)\n",
+					cfg.Port,
+					route,
+					f.Path,
+				)
 
-			ctx.Handle(route, h)
-			ctx.Handle(route+"/*", h)
+				ctx.Handle(route, h)
+				ctx.Handle(route+"/*", h)
+			}
 		}
 
 		if info.IsDir() {

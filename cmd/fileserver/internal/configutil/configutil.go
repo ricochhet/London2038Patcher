@@ -44,6 +44,14 @@ type ChatChannel struct {
 	Name string `json:"name"`
 }
 
+// Features controls which optional server features are active.
+// All features are enabled by default; set a Disable flag to true to turn one off.
+type Features struct {
+	ChatRoute     string `json:"chatRoute"` // defaults to "/chat" when empty
+	DisableChat   bool   `json:"disableChat"`
+	DisableBrowse bool   `json:"disableBrowse"`
+}
+
 type Server struct {
 	Port             int      `json:"port"`
 	AllowCredentials bool     `json:"allowCredentials"`
@@ -55,6 +63,7 @@ type Server struct {
 
 	Hidden []string `json:"hidden"`
 
+	Features  Features  `json:"features"`
 	BasicAuth BasicAuth `json:"basicAuth"`
 	FormAuth  FormAuth  `json:"formAuth"`
 
