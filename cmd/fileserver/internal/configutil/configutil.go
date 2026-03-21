@@ -92,6 +92,9 @@ type ContentEntry struct {
 	Name   string `json:"name"`
 	Base64 string `json:"base64"` // json marshals []byte as base64; string allows the "asset:" prefix scheme
 
+	Dir     string   `json:"dir"`
+	Exclude []string `json:"exclude"`
+
 	Info Info `json:"info"`
 }
 

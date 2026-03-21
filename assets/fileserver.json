@@ -52,144 +52,18 @@
                     }
                 },
                 {
-                    "route": "/css/base.css",
-                    "name": "css/base.css",
-                    "base64": "asset:css/base.css",
+                    "route": "/js",
+                    "dir": "asset:js",
+                    "exclude": [],
                     "info": {
                         "statusCode": 0,
                         "headers": {}
                     }
                 },
                 {
-                    "route": "/js/marked.min.js",
-                    "name": "js/marked.min.js",
-                    "base64": "asset:js/marked.min.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/browse/browse.js",
-                    "name": "js/browse/browse.js",
-                    "base64": "asset:js/browse/browse.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/components/i18n.js",
-                    "name": "js/components/i18n.js",
-                    "base64": "asset:js/components/i18n.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/components/lang.js",
-                    "name": "js/components/lang.js",
-                    "base64": "asset:js/components/lang.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/browse/table.js",
-                    "name": "js/browse/table.js",
-                    "base64": "asset:js/browse/table.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/browse/search.js",
-                    "name": "js/browse/search.js",
-                    "base64": "asset:js/browse/search.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/browse/preview.js",
-                    "name": "js/browse/preview.js",
-                    "base64": "asset:js/browse/preview.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/browse/readme.js",
-                    "name": "js/browse/readme.js",
-                    "base64": "asset:js/browse/readme.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/components/userbar.js",
-                    "name": "js/components/userbar.js",
-                    "base64": "asset:js/components/userbar.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/locales/en.json",
-                    "name": "js/locales/en.json",
-                    "base64": "asset:js/locales/en.json",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/chat/chat.js",
-                    "name": "js/chat/chat.js",
-                    "base64": "asset:js/chat/chat.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/chat/state.js",
-                    "name": "js/chat/state.js",
-                    "base64": "asset:js/chat/state.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/chat/channels.js",
-                    "name": "js/chat/channels.js",
-                    "base64": "asset:js/chat/channels.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/chat/messages.js",
-                    "name": "js/chat/messages.js",
-                    "base64": "asset:js/chat/messages.js",
-                    "info": {
-                        "statusCode": 0,
-                        "headers": {}
-                    }
-                },
-                {
-                    "route": "/js/chat/modal.js",
-                    "name": "js/chat/modal.js",
-                    "base64": "asset:js/chat/modal.js",
+                    "route": "/css",
+                    "dir": "asset:css",
+                    "exclude": [],
                     "info": {
                         "statusCode": 0,
                         "headers": {}

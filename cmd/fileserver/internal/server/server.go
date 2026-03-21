@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"text/template"
 	"time"
@@ -31,6 +33,12 @@ import (
 	"github.com/ricochhet/london2038patcher/pkg/logutil"
 )
 
+const (
+	defaultChatRoute = "/chat"
+	chatTmpl         = "chat"
+	chatTmplHTML     = "chat.html"
+)
+
 // Context is the top-level server runtime, created once and shared across all configured instances.
 type Context struct {
 	ConfigFile string
@@ -43,13 +51,8 @@ type Context struct {
 	chatStore  *chat.Store
 	db         *db.DB
 	baseCancel context.CancelFunc
+	connWg     sync.WaitGroup
 }
-
-const (
-	defaultChatRoute = "/chat"
-	chatTmpl         = "chat"
-	chatTmplHTML     = "chat.html"
-)
 
 // NewServer returns a Context with the database and chat store initialized.
 func NewServer(
@@ -89,9 +92,7 @@ func NewServer(
 }
 
 // renderChatTemplate executes chat.html as a Go template, injecting the chat route.
-// text/template is used intentionally — html/template applies context-aware JS escaping
-// inside script blocks, which corrupts the injected value. The chat route is server-controlled
-// so no sanitization is needed.
+// text/template is used intentionally — html/template applies context-aware JS escaping.
 func renderChatTemplate(src []byte, chatRoute string) ([]byte, error) {
 	tmpl, err := template.New(chatTmpl).Parse(string(src))
 	if err != nil {
@@ -274,16 +275,18 @@ func (c *Context) shutdown() {
 		c.baseCancel()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Wait for all connections to close naturally after the context is canceled.
+	// ConnState callbacks (set in ListenAndServe) decrement connWg when each
+	// connection reaches StateClosed, so this returns as soon as they're all gone.
+	c.connWg.Wait()
 
 	for _, srv := range c.servers {
-		if err := srv.Shutdown(ctx); err != nil {
-			logutil.Errorf(logutil.Get(), "Error shutting down server: %v\n", err)
+		if err := srv.Close(); err != nil {
+			logutil.Errorf(logutil.Get(), "Error closing server: %v\n", err)
 		}
 	}
 
-	// Close the DB after servers drain so in-flight SaveMessage calls can complete.
+	// Close the DB after servers close so in-flight SaveMessage calls can complete.
 	if c.db != nil {
 		if err := c.db.Close(); err != nil {
 			logutil.Errorf(logutil.Get(), "Error closing database: %v\n", err)
@@ -389,7 +392,7 @@ func (c *Context) startServer(
 		return errutil.New("c.serveContentHandler", err)
 	}
 
-	srv := ctx.ListenAndServe(baseCtx, fmt.Sprintf(":%d", cfg.Port))
+	srv := ctx.ListenAndServe(baseCtx, fmt.Sprintf(":%d", cfg.Port), &c.connWg)
 	c.servers = append(c.servers, srv)
 
 	return nil
@@ -458,13 +461,20 @@ func (c *Context) serveContentHandler(
 	limit func(http.Handler) http.Handler,
 ) error {
 	for _, f := range cfg.ContentEntries {
+		if f.Dir != "" {
+			if err := c.serveEmbeddedDir(ctx, cfg, f, limit); err != nil {
+				return errutil.New("c.serveEmbeddedDir", err)
+			}
+
+			continue
+		}
+
 		logutil.Infof(
 			logutil.Get(),
-			"Port %d: %s -> %s (%d)\n",
+			"Port %d: %s -> %s\n",
 			cfg.Port,
 			f.Route,
 			f.Name,
-			len(f.Base64),
 		)
 
 		b, err := embedutil.MaybeBase64(c.FS, f.Base64)
@@ -476,6 +486,62 @@ func (c *Context) serveContentHandler(
 	}
 
 	return nil
+}
+
+// serveEmbeddedDir walks an embedded directory and registers a route for each
+// file, skipping any whose relative path matches an Exclude glob pattern.
+func (c *Context) serveEmbeddedDir(
+	ctx *serverutil.Context,
+	cfg *configutil.Server,
+	f configutil.ContentEntry,
+	limit func(http.Handler) http.Handler,
+) error {
+	dirPath := strings.TrimPrefix(f.Dir, "asset:")
+	fullPath := path.Join(c.FS.Initial, dirPath)
+	baseRoute := strings.TrimSuffix(f.Route, "/")
+
+	return c.FS.List(fullPath, func(files []embedutil.File) error {
+		for _, file := range files {
+			rel, err := filepath.Rel(fullPath, file.Path)
+			if err != nil {
+				return errutil.WithFramef("cannot relativise %s: %w", file.Path, err)
+			}
+
+			rel = filepath.ToSlash(rel)
+
+			if isExcluded(rel, f.Exclude) {
+				logutil.Infof(logutil.Get(), "Port %d: skipping excluded asset %s\n", cfg.Port, rel)
+				continue
+			}
+
+			route := baseRoute + "/" + rel
+			b := embedutil.MaybeRead(c.FS, path.Join(dirPath, rel))
+
+			logutil.Infof(
+				logutil.Get(),
+				"Port %d: %s -> %s (embedded)\n",
+				cfg.Port,
+				route,
+				file.Path,
+			)
+
+			ctx.Handle(route, limit(serverutil.ServeContentHandler(f.Info, path.Base(rel), b)))
+		}
+
+		return nil
+	})
+}
+
+// isExcluded reports whether rel matches any of the given glob patterns.
+func isExcluded(rel string, patterns []string) bool {
+	for _, pattern := range patterns {
+		matched, err := path.Match(pattern, rel)
+		if err == nil && matched {
+			return true
+		}
+	}
+
+	return false
 }
 
 // matchPattern walks a directory and registers a route for each file found.
