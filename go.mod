@@ -2,7 +2,7 @@ module github.com/ricochhet/london2038patcher
 
 go 1.25.4
 
-require golang.org/x/sys v0.42.0
+require golang.org/x/sys v0.43.0
 
 require (
 	github.com/mattn/go-colorable v0.1.14
